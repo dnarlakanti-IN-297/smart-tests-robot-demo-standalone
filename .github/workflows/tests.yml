@@ -119,7 +119,7 @@ jobs:
 
     - name: Generate test list
       run: |
-        pytest --collect-only -q tests/e2e/ > test_list.txt
+        pytest --collect-only -qq tests/e2e/ > test_list.txt
         cat test_list.txt
 
     - name: Create Smart Tests subset
@@ -130,7 +130,7 @@ jobs:
     - name: Run E2E tests (Smart Tests subset)
       run: |
         if [ -s smart-tests-subset.txt ]; then
-          pytest $(cat smart-tests-subset.txt) -v --video=retain-on-failure --screenshot=only-on-failure --junit-xml=test-results/junit.xml
+          pytest -v --video=retain-on-failure --screenshot=only-on-failure --junit-xml=test-results/junit.xml @smart-tests-subset.txt
         else
           echo "No tests to run in subset"
         fi

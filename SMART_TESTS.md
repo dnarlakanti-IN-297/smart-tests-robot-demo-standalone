@@ -21,8 +21,8 @@ pytest tests/e2e/  # Runs all 29 E2E tests (~70 seconds)
 
 ### After Smart Tests
 ```bash
-# Generate test list (collect test cases)
-pytest --collect-only -q tests/e2e/ > test_list.txt
+# Generate test list (collect test node IDs)
+pytest --collect-only -qq tests/e2e/ > test_list.txt
 
 # Request subset (e.g., 50% of tests)
 cat test_list.txt | smart-tests subset pytest \
@@ -30,7 +30,7 @@ cat test_list.txt | smart-tests subset pytest \
   --target 50% > smart-tests-subset.txt
 
 # Run only the subset (~35 seconds)
-pytest $(cat smart-tests-subset.txt)
+pytest @smart-tests-subset.txt
 ```
 
 ## Setup
@@ -70,7 +70,7 @@ steps:
 
   - name: Generate test list
     run: |
-      pytest --collect-only -q tests/e2e/ > test_list.txt
+      pytest --collect-only -qq tests/e2e/ > test_list.txt
       cat test_list.txt
 
   - name: Create Smart Tests subset
@@ -83,7 +83,7 @@ steps:
   - name: Run E2E tests (Smart Tests subset)
     run: |
       if [ -s smart-tests-subset.txt ]; then
-        pytest $(cat smart-tests-subset.txt) -v --junit-xml=test-results/junit.xml
+        pytest -v --junit-xml=test-results/junit.xml @smart-tests-subset.txt
       else
         echo "No tests to run in subset"
       fi
@@ -155,8 +155,8 @@ smart-tests record session \
   --observation \
   --test-suite pytest-e2e > session.txt
 
-# Generate test list (collect test cases)
-pytest --collect-only -q tests/e2e/ > test_list.txt
+# Generate test list (collect test node IDs)
+pytest --collect-only -qq tests/e2e/ > test_list.txt
 
 # Generate subset
 cat test_list.txt | smart-tests subset pytest \
@@ -164,7 +164,7 @@ cat test_list.txt | smart-tests subset pytest \
   --target 50% > subset.txt
 
 # Run subset
-pytest $(cat subset.txt) -v --junit-xml=test-results/junit.xml
+pytest -v --junit-xml=test-results/junit.xml @subset.txt
 
 # Record results
 smart-tests record tests pytest --session @session.txt "test-results/*.xml"
