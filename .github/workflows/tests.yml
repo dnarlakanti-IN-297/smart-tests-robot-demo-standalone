@@ -57,10 +57,14 @@ jobs:
   e2e-tests:
     name: E2E Tests with Playwright
     runs-on: ubuntu-latest
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -85,6 +89,19 @@ jobs:
       run: |
         playwright install --with-deps chromium
 
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} --observation --test-suite playwright-e2e > session.txt
+        cat session.txt
+
     - name: Initialize database
       run: |
         python -m app.db.init_db
@@ -100,11 +117,30 @@ jobs:
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
 
-    - name: Run E2E tests
+    - name: Generate test list
       run: |
-        pytest tests/e2e/ -v --video=retain-on-failure --screenshot=only-on-failure
+        find tests/e2e -name "test_*.py" > test_list.txt
+        cat test_list.txt
+
+    - name: Create Smart Tests subset
+      run: |
+        cat test_list.txt | smart-tests subset playwright --build ${{ github.run_id }} --session @session.txt --target 50% > smart-tests-subset.txt
+        cat smart-tests-subset.txt
+
+    - name: Run E2E tests (Smart Tests subset)
+      run: |
+        if [ -s smart-tests-subset.txt ]; then
+          pytest $(cat smart-tests-subset.txt) -v --video=retain-on-failure --screenshot=only-on-failure --junit-xml=test-results/junit.xml
+        else
+          echo "No tests to run in subset"
+        fi
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Record test results with Smart Tests
+      if: always()
+      run: |
+        smart-tests record tests playwright --session @session.txt "test-results"
 
     - name: Upload Playwright artifacts
       if: failure()

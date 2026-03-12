@@ -1,9 +1,10 @@
 # Issue Tracker
 
 ![Tests](https://github.com/xgalanxhi/issues-tracker-app/actions/workflows/tests.yml/badge.svg)
-![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)
+![Python](https://img.shields.io/badge/python-3.13+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.135-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Smart Tests](https://img.shields.io/badge/Smart%20Tests-Enabled-brightgreen.svg)
 
 A modern issue tracking application built with FastAPI, SQLAlchemy, and Python. Features project management, issue tracking with statuses and priorities, comments, tags, and JWT authentication.
 
@@ -17,7 +18,8 @@ A modern issue tracking application built with FastAPI, SQLAlchemy, and Python. 
 - ✅ **Assignments** - Assign issues to team members
 - ✅ **RESTful API** - Comprehensive REST API with OpenAPI documentation
 - ✅ **Web Interface** - HTML templates for browser-based access
-- ✅ **Comprehensive Tests** - Unit and integration tests with pytest
+- ✅ **Comprehensive Tests** - 140+ tests: unit, integration, and E2E with Playwright
+- ✅ **Smart Tests** - AI-powered test selection to optimize CI time (50%+ faster)
 
 ## Tech Stack
 
@@ -96,10 +98,15 @@ The project includes a comprehensive Makefile for easy development:
 - `make lint` - Run linting checks (flake8, mypy, black, isort)
 
 ### Testing
-- `make test` - Run all tests
+- `make test` - Run all tests (unit + integration)
 - `make test-unit` - Run unit tests only
 - `make test-integration` - Run integration tests only
+- `make test-e2e` - Run E2E tests with Playwright (headed mode)
+- `make test-e2e-headless` - Run E2E tests (headless, for CI)
+- `make test-all` - Run all tests including E2E
 - `make test-cov` - Run tests with coverage report
+
+**Smart Tests Integration**: E2E tests in CI use [Smart Tests](./SMART_TESTS.md) to run only relevant test subsets, reducing CI time by 50%+.
 
 ### Docker
 - `make docker-build` - Build Docker image
