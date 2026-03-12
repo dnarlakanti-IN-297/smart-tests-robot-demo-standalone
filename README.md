@@ -19,7 +19,7 @@ A modern issue tracking application built with FastAPI, SQLAlchemy, and Python. 
 - ✅ **RESTful API** - Comprehensive REST API with OpenAPI documentation
 - ✅ **Web Interface** - HTML templates for browser-based access
 - ✅ **Comprehensive Tests** - 140+ tests: unit, integration, and E2E with Playwright
-- ✅ **Smart Tests** - AI-powered test selection to optimize CI time (50%+ faster)
+- ✅ **Smart Tests** - AI-powered test selection for all test suites to optimize CI time (50%+ faster)
 
 ## Tech Stack
 
@@ -106,7 +106,7 @@ The project includes a comprehensive Makefile for easy development:
 - `make test-all` - Run all tests including E2E
 - `make test-cov` - Run tests with coverage report
 
-**Smart Tests Integration**: E2E tests in CI use [Smart Tests](./SMART_TESTS.md) to run only relevant test subsets, reducing CI time by 50%+.
+**Smart Tests Integration**: All tests in CI (unit, integration, and E2E) use [Smart Tests](./SMART_TESTS.md) to run only relevant test subsets, reducing CI time by 50%+.
 
 ### Docker
 - `make docker-build` - Build Docker image

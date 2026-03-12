@@ -12,6 +12,11 @@ Smart Tests uses AI and historical test data to intelligently select which tests
 - Test failure patterns
 - Test execution times
 
+This project uses Smart Tests for:
+- **Unit tests** (`pytest-unit` test suite) - 50% subset
+- **Integration tests** (`pytest-integration` test suite) - 50% subset
+- **E2E tests** (`pytest-e2e` test suite) - 50% subset
+
 ## How It Works
 
 ### Before Smart Tests
@@ -107,20 +112,24 @@ Control how many tests to run:
 
 ### Test Suite Name
 
-Customize the test suite identifier:
+Customize the test suite identifier to track different test types:
 
 ```bash
---test-suite pytest-e2e          # E2E tests with pytest
+--test-suite pytest-unit         # Unit tests
 --test-suite pytest-integration  # Integration tests
+--test-suite pytest-e2e          # E2E tests with pytest
 --test-suite pytest-smoke        # Smoke tests
 ```
+
+**Important**: Use separate test suites for different test types so Smart Tests can track and optimize each independently.
 
 ## Benefits
 
 ### Time Savings
-- **Before**: All 29 E2E tests = ~70 seconds
-- **After**: 50% subset = ~35 seconds
-- **Savings**: 50% reduction in E2E test time
+- **Unit Tests**: 50% subset = ~50% time reduction
+- **Integration Tests**: 50% subset = ~50% time reduction
+- **E2E Tests**: 50% subset (15 of 29 tests) = ~50% time reduction (~35s instead of ~70s)
+- **Overall CI Pipeline**: Significant reduction in total test execution time
 
 ### Smart Selection
 Smart Tests doesn't randomly select tests. It prioritizes:
@@ -147,27 +156,80 @@ export SMART_TESTS_TOKEN="your-token-here"
 smart-tests verify
 
 # Record a build
-smart-tests record build --build local-$(date +%s)
+BUILD_ID="local-$(date +%s)"
+smart-tests record build --build $BUILD_ID
+```
 
-# Record a session
+### Running Unit Tests with Smart Tests
+
+```bash
+# Record a session for unit tests
 smart-tests record session \
-  --build local-$(date +%s) \
+  --build $BUILD_ID \
   --observation \
-  --test-suite pytest-e2e > session.txt
+  --test-suite pytest-unit > session-unit.txt
 
-# Generate test list (collect test node IDs)
-pytest --collect-only -qq tests/e2e/ > test_list.txt
+# Generate test list
+pytest --collect-only -qq tests/unit/ > test_list_unit.txt
 
 # Generate subset
-cat test_list.txt | smart-tests subset pytest \
-  --session @session.txt \
-  --target 50% > subset.txt
+cat test_list_unit.txt | smart-tests subset pytest \
+  --session @session-unit.txt \
+  --target 50% > subset-unit.txt
 
 # Run subset
-pytest -v -o junit_family=legacy --junit-xml=test-results/junit.xml @subset.txt
+pytest -v -o junit_family=legacy --junit-xml=test-results/unit.xml @subset-unit.txt
 
 # Record results
-smart-tests record tests pytest --session @session.txt "test-results/*.xml"
+smart-tests record tests pytest --session @session-unit.txt "test-results/unit.xml"
+```
+
+### Running Integration Tests with Smart Tests
+
+```bash
+# Record a session for integration tests
+smart-tests record session \
+  --build $BUILD_ID \
+  --observation \
+  --test-suite pytest-integration > session-integration.txt
+
+# Generate test list
+pytest --collect-only -qq tests/integration/ > test_list_integration.txt
+
+# Generate subset
+cat test_list_integration.txt | smart-tests subset pytest \
+  --session @session-integration.txt \
+  --target 50% > subset-integration.txt
+
+# Run subset
+pytest -v -o junit_family=legacy --junit-xml=test-results/integration.xml @subset-integration.txt
+
+# Record results
+smart-tests record tests pytest --session @session-integration.txt "test-results/integration.xml"
+```
+
+### Running E2E Tests with Smart Tests
+
+```bash
+# Record a session for E2E tests
+smart-tests record session \
+  --build $BUILD_ID \
+  --observation \
+  --test-suite pytest-e2e > session-e2e.txt
+
+# Generate test list
+pytest --collect-only -qq tests/e2e/ > test_list_e2e.txt
+
+# Generate subset
+cat test_list_e2e.txt | smart-tests subset pytest \
+  --session @session-e2e.txt \
+  --target 50% > subset-e2e.txt
+
+# Run subset
+pytest -v -o junit_family=legacy --junit-xml=test-results/e2e.xml @subset-e2e.txt
+
+# Record results
+smart-tests record tests pytest --session @session-e2e.txt "test-results/e2e.xml"
 ```
 
 ## Troubleshooting

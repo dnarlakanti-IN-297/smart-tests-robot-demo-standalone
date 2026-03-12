@@ -10,10 +10,14 @@ jobs:
   unit-and-integration-tests:
     name: Unit & Integration Tests
     runs-on: ubuntu-latest
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -34,17 +38,73 @@ jobs:
         pip install -r requirements-dev.txt
         pip3 install --no-cache-dir smart-tests-cli~=2.0
 
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }}
+
     - name: Create test database
       run: |
         python -m app.db.init_db
 
-    - name: Run unit tests
+    - name: Record session for unit tests
       run: |
-        pytest tests/unit/ -v --cov=app --cov-report=xml --cov-report=term
+        smart-tests record session --build ${{ github.run_id }} --observation --test-suite pytest-unit > session-unit.txt
+        cat session-unit.txt
 
-    - name: Run integration tests
+    - name: Generate unit test list
       run: |
-        pytest tests/integration/ -v --cov=app --cov-append --cov-report=xml --cov-report=term
+        pytest --collect-only -qq tests/unit/ > test_list_unit.txt
+        cat test_list_unit.txt
+
+    - name: Create Smart Tests subset for unit tests
+      run: |
+        cat test_list_unit.txt | smart-tests subset pytest --session @session-unit.txt --target 50% > smart-tests-subset-unit.txt
+        cat smart-tests-subset-unit.txt
+
+    - name: Run unit tests (Smart Tests subset)
+      run: |
+        if [ -s smart-tests-subset-unit.txt ]; then
+          pytest -v -o junit_family=legacy --cov=app --cov-report=xml --cov-report=term --junit-xml=test-results/unit.xml @smart-tests-subset-unit.txt
+        else
+          echo "No unit tests to run in subset"
+        fi
+
+    - name: Record unit test results with Smart Tests
+      if: always()
+      run: |
+        smart-tests record tests pytest --session @session-unit.txt "test-results/unit.xml"
+
+    - name: Record session for integration tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} --observation --test-suite pytest-integration > session-integration.txt
+        cat session-integration.txt
+
+    - name: Generate integration test list
+      run: |
+        pytest --collect-only -qq tests/integration/ > test_list_integration.txt
+        cat test_list_integration.txt
+
+    - name: Create Smart Tests subset for integration tests
+      run: |
+        cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt --target 50% > smart-tests-subset-integration.txt
+        cat smart-tests-subset-integration.txt
+
+    - name: Run integration tests (Smart Tests subset)
+      run: |
+        if [ -s smart-tests-subset-integration.txt ]; then
+          pytest -v -o junit_family=legacy --cov=app --cov-append --cov-report=xml --cov-report=term --junit-xml=test-results/integration.xml @smart-tests-subset-integration.txt
+        else
+          echo "No integration tests to run in subset"
+        fi
+
+    - name: Record integration test results with Smart Tests
+      if: always()
+      run: |
+        smart-tests record tests pytest --session @session-integration.txt "test-results/integration.xml"
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
