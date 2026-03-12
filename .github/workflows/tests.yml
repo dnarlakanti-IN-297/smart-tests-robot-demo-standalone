@@ -2,14 +2,12 @@ name: Tests
 
 on:
   push:
-    branches: [ main, develop ]
     paths:
       - 'app/**'
       - 'tests/**'
       - 'requirements.txt'
       - 'requirements-dev.txt'
   pull_request:
-    branches: [ main, develop ]
     paths:
       - 'app/**'
       - 'tests/**'

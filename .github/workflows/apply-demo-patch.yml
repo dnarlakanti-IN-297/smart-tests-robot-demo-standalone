@@ -27,14 +27,24 @@ jobs:
     steps:
     - name: Check branch protection
       run: |
-        if [ "${{ github.ref_name }}" == "main" ]; then
-          echo "❌ Error: Cannot apply demo patches to the main branch"
-          echo "This workflow is blocked on the main branch for safety."
+        BRANCH="${{ github.ref_name }}"
+
+        # Only allow branches that start with "patch-"
+        if [[ ! "$BRANCH" =~ ^patch- ]]; then
+          echo "❌ Error: This workflow can only run on branches starting with 'patch-'"
           echo ""
-          echo "Please run this workflow from a different branch (e.g., develop, demo, feature/demo)"
+          echo "Current branch: $BRANCH"
+          echo ""
+          echo "To use this workflow:"
+          echo "  1. Create a patch branch: git checkout -b patch-demo"
+          echo "  2. Push it: git push -u origin patch-demo"
+          echo "  3. Run this workflow from the patch-demo branch"
+          echo ""
+          echo "Allowed branch patterns: patch-*, patch-demo, patch-test, etc."
           exit 1
         fi
-        echo "✅ Branch check passed: ${{ github.ref_name }}"
+
+        echo "✅ Branch check passed: $BRANCH"
 
     - name: Checkout code
       uses: actions/checkout@v4
