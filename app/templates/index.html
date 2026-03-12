@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Issue Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Welcome to Issue Tracker</h2>
+    <p>A modern issue tracking system built with FastAPI, SQLAlchemy, and Python.</p>
+
+    <div style="margin-top: 2rem;">
+        <h3>Features</h3>
+        <ul style="margin-left: 2rem; margin-top: 1rem;">
+            <li>✅ Project management with member roles</li>
+            <li>✅ Issue tracking with statuses and priorities</li>
+            <li>✅ Comments and discussions</li>
+            <li>✅ Tag/label system</li>
+            <li>✅ User assignments</li>
+            <li>✅ JWT authentication</li>
+            <li>✅ RESTful API with OpenAPI docs</li>
+        </ul>
+    </div>
+
+    <div style="margin-top: 2rem;">
+        <h3>Quick Start</h3>
+        <p style="margin-top: 1rem;">
+            <a href="/register" class="btn btn-primary">Register</a>
+            <a href="/login" class="btn btn-secondary" style="margin-left: 1rem;">Login</a>
+            <a href="/api/docs" class="btn btn-secondary" style="margin-left: 1rem;">API Documentation</a>
+        </p>
+    </div>
+
+    <div style="margin-top: 2rem;">
+        <h3>Test Accounts</h3>
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Password</th>
+                    <th>Role</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>admin</td>
+                    <td>admin123</td>
+                    <td><span class="badge badge-critical">Admin</span></td>
+                </tr>
+                <tr>
+                    <td>john</td>
+                    <td>password123</td>
+                    <td><span class="badge badge-open">User</span></td>
+                </tr>
+                <tr>
+                    <td>jane</td>
+                    <td>password123</td>
+                    <td><span class="badge badge-open">User</span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card">
+    <h2>API Endpoints</h2>
+    <p>The following API endpoints are available:</p>
+
+    <h3 style="margin-top: 1.5rem;">Authentication</h3>
+    <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+        <li><code>POST /api/auth/register</code> - Register a new user</li>
+        <li><code>POST /api/auth/login</code> - Login and get JWT token</li>
+    </ul>
+
+    <h3 style="margin-top: 1.5rem;">Projects</h3>
+    <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+        <li><code>GET /api/projects</code> - List user's projects</li>
+        <li><code>POST /api/projects</code> - Create a new project</li>
+        <li><code>GET /api/projects/{id}</code> - Get project details</li>
+        <li><code>PUT /api/projects/{id}</code> - Update project</li>
+        <li><code>DELETE /api/projects/{id}</code> - Delete project</li>
+    </ul>
+
+    <h3 style="margin-top: 1.5rem;">Issues</h3>
+    <ul style="margin-left: 2rem; margin-top: 0.5rem;">
+        <li><code>GET /api/issues</code> - List issues</li>
+        <li><code>POST /api/issues</code> - Create a new issue</li>
+        <li><code>GET /api/issues/{id}</code> - Get issue details</li>
+        <li><code>PUT /api/issues/{id}</code> - Update issue</li>
+        <li><code>DELETE /api/issues/{id}</code> - Delete issue</li>
+    </ul>
+
+    <p style="margin-top: 1.5rem;">
+        <a href="/api/docs" class="btn btn-primary">View Full API Documentation</a>
+    </p>
+</div>
+{% endblock %}

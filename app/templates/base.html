@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Issue Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <header>
+        <nav>
+            <div>
+                <h1><a href="/" style="color: white; text-decoration: none;">Issue Tracker</a></h1>
+            </div>
+            <ul id="nav-menu">
+                <li><a href="/projects">Projects</a></li>
+                <li><a href="/api/docs">API Docs</a></li>
+                <li id="auth-menu"></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Check if user is authenticated
+        const token = localStorage.getItem('access_token');
+        const authMenu = document.getElementById('auth-menu');
+
+        if (token) {
+            authMenu.innerHTML = '<a href="#" onclick="logout()">Logout</a>';
+        } else {
+            authMenu.innerHTML = '<a href="/login">Login</a> | <a href="/register">Register</a>';
+        }
+
+        function logout() {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('username');
+            window.location.href = '/';
+        }
+
+        // Helper function to make authenticated API requests
+        async function apiRequest(url, options = {}) {
+            const token = localStorage.getItem('access_token');
+
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            const response = await fetch(url, {
+                ...options,
+                headers
+            });
+
+            if (response.status === 401) {
+                localStorage.removeItem('access_token');
+                window.location.href = '/login';
+                return null;
+            }
+
+            return response;
+        }
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

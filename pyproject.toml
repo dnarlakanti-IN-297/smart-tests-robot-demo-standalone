@@ -1,0 +1,55 @@
+[project]
+name = "issue-tracker"
+version = "1.0.0"
+description = "Issue Tracker Application with FastAPI"
+requires-python = ">=3.11"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | alembic
+  | __pycache__
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+skip = [".venv", "venv", "alembic"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --strict-markers"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "e2e: End-to-end tests with Playwright",
+    "slow: Slow running tests",
+]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+exclude = ["alembic", ".venv", "venv"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*", "*/alembic/*"]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false

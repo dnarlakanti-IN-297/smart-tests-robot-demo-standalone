@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Issues - Issue Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Issues</h2>
+
+    <div style="margin-bottom: 2rem;">
+        <button class="btn btn-primary" onclick="showCreateIssueModal()">Create Issue</button>
+    </div>
+
+    <div id="issues-list" class="loading">Loading issues...</div>
+</div>
+
+<script>
+const projectId = {{ project_id }};
+
+async function loadIssues() {
+    const issuesList = document.getElementById('issues-list');
+
+    try {
+        // Add a small delay to ensure token is available
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const response = await apiRequest(`/api/issues?project_id=${projectId}`);
+
+        if (!response || !response.ok) {
+            issuesList.innerHTML = '<div class="alert alert-error">Failed to load issues.</div>';
+            return;
+        }
+
+        const issues = await response.json();
+
+        if (issues.length === 0) {
+            issuesList.innerHTML = '<p>No issues yet. Create your first issue!</p>';
+            return;
+        }
+
+        issuesList.innerHTML = `
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Title</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${issues.map(issue => `
+                        <tr>
+                            <td>#${issue.id}</td>
+                            <td>${issue.title}</td>
+                            <td><span class="badge badge-${issue.type}">${issue.type}</span></td>
+                            <td><span class="badge badge-${issue.status.replace('_', '-')}">${issue.status}</span></td>
+                            <td><span class="badge badge-${issue.priority}">${issue.priority}</span></td>
+                            <td>${new Date(issue.created_at).toLocaleDateString()}</td>
+                            <td><a href="/issues/${issue.id}" class="btn btn-primary" style="padding: 0.5rem 1rem;">View</a></td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        issuesList.innerHTML = '<div class="alert alert-error">An error occurred.</div>';
+    }
+}
+
+function showCreateIssueModal() {
+    window.location.href = '/issues/new?project_id=' + projectId;
+}
+
+loadIssues();
+</script>
+{% endblock %}

@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Issue Details - Issue Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div id="issue-details" class="loading">Loading issue...</div>
+</div>
+
+<!-- Edit Issue Modal -->
+<div id="edit-issue-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; overflow-y: auto;">
+    <div class="card" style="max-width: 600px; margin: 2rem auto;">
+        <h2>Edit Issue</h2>
+        <div id="edit-error"></div>
+        <form id="edit-issue-form">
+            <div class="form-group">
+                <label for="edit-title">Title *</label>
+                <input type="text" id="edit-title" required>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-description">Description</label>
+                <textarea id="edit-description" rows="5"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-type">Type *</label>
+                <select id="edit-type" required>
+                    <option value="bug">Bug</option>
+                    <option value="feature">Feature</option>
+                    <option value="task">Task</option>
+                    <option value="enhancement">Enhancement</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-priority">Priority *</label>
+                <select id="edit-priority" required>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="critical">Critical</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="edit-status">Status *</label>
+                <select id="edit-status" required>
+                    <option value="open">Open</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="closed">Closed</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Update Issue</button>
+            <button type="button" class="btn btn-secondary" onclick="hideEditModal()">Cancel</button>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Comments</h3>
+    <div id="comments-list" class="loading">Loading comments...</div>
+
+    <div style="margin-top: 2rem;">
+        <h4>Add Comment</h4>
+        <div id="comment-error"></div>
+        <form id="add-comment-form">
+            <div class="form-group">
+                <textarea id="comment-content" rows="4" placeholder="Write your comment..." required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Add Comment</button>
+        </form>
+    </div>
+</div>
+
+<script>
+const issueId = {{ issue_id }};
+let currentIssue = null;
+
+async function loadIssue() {
+    try {
+        // Add a small delay to ensure token is available
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const response = await apiRequest(`/api/issues/${issueId}`);
+
+        if (!response || !response.ok) {
+            document.getElementById('issue-details').innerHTML = '<div class="alert alert-error">Failed to load issue.</div>';
+            return;
+        }
+
+        const issue = await response.json();
+        currentIssue = issue;
+
+        document.getElementById('issue-details').innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
+                <h2>#${issue.id} - ${issue.title}</h2>
+                <button class="btn btn-primary" onclick="showEditModal()" style="margin-left: 1rem;">Edit Issue</button>
+            </div>
+            <div style="margin: 1rem 0;">
+                <span class="badge badge-${issue.type}">${issue.type}</span>
+                <span class="badge badge-${issue.status.replace('_', '-')}">${issue.status}</span>
+                <span class="badge badge-${issue.priority}">${issue.priority}</span>
+            </div>
+            <div style="margin: 1rem 0;">
+                <strong>Description:</strong>
+                <p>${issue.description || 'No description provided.'}</p>
+            </div>
+            <div style="margin: 1rem 0;">
+                <strong>Created:</strong> ${new Date(issue.created_at).toLocaleString()}
+            </div>
+            <div style="margin: 1rem 0;">
+                <strong>Last Updated:</strong> ${new Date(issue.updated_at).toLocaleString()}
+            </div>
+        `;
+    } catch (error) {
+        document.getElementById('issue-details').innerHTML = '<div class="alert alert-error">An error occurred.</div>';
+    }
+}
+
+function showEditModal() {
+    if (!currentIssue) return;
+
+    // Populate form with current issue data
+    document.getElementById('edit-title').value = currentIssue.title;
+    document.getElementById('edit-description').value = currentIssue.description || '';
+    document.getElementById('edit-type').value = currentIssue.type;
+    document.getElementById('edit-priority').value = currentIssue.priority;
+    document.getElementById('edit-status').value = currentIssue.status;
+
+    document.getElementById('edit-issue-modal').style.display = 'block';
+}
+
+function hideEditModal() {
+    document.getElementById('edit-issue-modal').style.display = 'none';
+    document.getElementById('edit-error').innerHTML = '';
+}
+
+async function loadComments() {
+    try {
+        // Add a small delay to ensure token is available
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const response = await apiRequest(`/api/comments?issue_id=${issueId}`);
+
+        if (!response || !response.ok) {
+            document.getElementById('comments-list').innerHTML = '<div class="alert alert-error">Failed to load comments.</div>';
+            return;
+        }
+
+        const comments = await response.json();
+
+        if (comments.length === 0) {
+            document.getElementById('comments-list').innerHTML = '<p>No comments yet. Be the first to comment!</p>';
+            return;
+        }
+
+        document.getElementById('comments-list').innerHTML = comments.map(comment => `
+            <div style="border: 1px solid #e5e7eb; border-radius: 6px; padding: 1rem; margin-bottom: 1rem;">
+                <div style="color: #6b7280; font-size: 0.875rem; margin-bottom: 0.5rem;">
+                    <strong>User #${comment.author_id}</strong> • ${new Date(comment.created_at).toLocaleString()}
+                </div>
+                <div>${comment.content}</div>
+            </div>
+        `).join('');
+    } catch (error) {
+        document.getElementById('comments-list').innerHTML = '<div class="alert alert-error">An error occurred.</div>';
+    }
+}
+
+document.getElementById('add-comment-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const content = document.getElementById('comment-content').value;
+    const errorDiv = document.getElementById('comment-error');
+
+    try {
+        const response = await apiRequest('/api/comments', {
+            method: 'POST',
+            body: JSON.stringify({ content, issue_id: issueId })
+        });
+
+        if (response && response.ok) {
+            document.getElementById('comment-content').value = '';
+            loadComments();
+            errorDiv.innerHTML = '<div class="alert alert-success">Comment added!</div>';
+            setTimeout(() => errorDiv.innerHTML = '', 3000);
+        } else {
+            const error = await response.json();
+            errorDiv.innerHTML = `<div class="alert alert-error">${error.detail || 'Failed to add comment'}</div>`;
+        }
+    } catch (error) {
+        errorDiv.innerHTML = '<div class="alert alert-error">An error occurred.</div>';
+    }
+});
+
+document.getElementById('edit-issue-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const title = document.getElementById('edit-title').value;
+    const description = document.getElementById('edit-description').value;
+    const type = document.getElementById('edit-type').value;
+    const priority = document.getElementById('edit-priority').value;
+    const status = document.getElementById('edit-status').value;
+    const errorDiv = document.getElementById('edit-error');
+
+    try {
+        const response = await apiRequest(`/api/issues/${issueId}`, {
+            method: 'PUT',
+            body: JSON.stringify({
+                title,
+                description,
+                type,
+                priority,
+                status
+            })
+        });
+
+        if (response && response.ok) {
+            hideEditModal();
+            loadIssue(); // Reload issue to show updated data
+            // Show success message
+            const issueDetails = document.getElementById('issue-details');
+            const successMsg = document.createElement('div');
+            successMsg.className = 'alert alert-success';
+            successMsg.textContent = 'Issue updated successfully!';
+            issueDetails.insertBefore(successMsg, issueDetails.firstChild);
+            setTimeout(() => successMsg.remove(), 3000);
+        } else {
+            const error = await response.json();
+            errorDiv.innerHTML = `<div class="alert alert-error">${error.detail || 'Failed to update issue'}</div>`;
+        }
+    } catch (error) {
+        console.error('Error updating issue:', error);
+        errorDiv.innerHTML = '<div class="alert alert-error">An error occurred while updating the issue.</div>';
+    }
+});
+
+loadIssue();
+loadComments();
+</script>
+{% endblock %}

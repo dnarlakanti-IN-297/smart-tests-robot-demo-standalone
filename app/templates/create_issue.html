@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Create Issue - Issue Tracker{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Create New Issue</h2>
+
+    <div id="error-message"></div>
+
+    <form id="create-issue-form">
+        <div class="form-group">
+            <label for="title">Title *</label>
+            <input type="text" id="title" required>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" rows="5" placeholder="Describe the issue..."></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="type">Type *</label>
+            <select id="type" required>
+                <option value="bug">Bug</option>
+                <option value="feature">Feature</option>
+                <option value="task">Task</option>
+                <option value="enhancement">Enhancement</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="priority">Priority *</label>
+            <select id="priority" required>
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="status">Status *</label>
+            <select id="status" required>
+                <option value="open" selected>Open</option>
+                <option value="in_progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+            </select>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Issue</button>
+        <button type="button" class="btn btn-secondary" onclick="cancelCreate()">Cancel</button>
+    </form>
+</div>
+
+<script>
+// Get project_id from URL query parameter
+const urlParams = new URLSearchParams(window.location.search);
+const projectId = urlParams.get('project_id');
+
+if (!projectId) {
+    document.getElementById('error-message').innerHTML =
+        '<div class="alert alert-error">No project specified. <a href="/projects">Go to Projects</a></div>';
+    document.getElementById('create-issue-form').style.display = 'none';
+}
+
+function cancelCreate() {
+    window.location.href = `/projects/${projectId}/issues`;
+}
+
+document.getElementById('create-issue-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const title = document.getElementById('title').value;
+    const description = document.getElementById('description').value;
+    const type = document.getElementById('type').value;
+    const priority = document.getElementById('priority').value;
+    const status = document.getElementById('status').value;
+    const errorDiv = document.getElementById('error-message');
+
+    try {
+        // Add delay to ensure token is available
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const response = await apiRequest('/api/issues', {
+            method: 'POST',
+            body: JSON.stringify({
+                title,
+                description,
+                type,
+                priority,
+                status,
+                project_id: parseInt(projectId)
+            })
+        });
+
+        if (response && response.ok) {
+            const issue = await response.json();
+            errorDiv.innerHTML = '<div class="alert alert-success">Issue created successfully!</div>';
+
+            // Redirect to the issue detail page after 1 second
+            setTimeout(() => {
+                window.location.href = `/issues/${issue.id}`;
+            }, 1000);
+        } else {
+            const error = await response.json();
+            errorDiv.innerHTML = `<div class="alert alert-error">${error.detail || 'Failed to create issue'}</div>`;
+        }
+    } catch (error) {
+        console.error('Error creating issue:', error);
+        errorDiv.innerHTML = '<div class="alert alert-error">An error occurred while creating the issue.</div>';
+    }
+});
+</script>
+{% endblock %}
