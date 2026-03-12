@@ -25,6 +25,17 @@ jobs:
       contents: write
 
     steps:
+    - name: Check branch protection
+      run: |
+        if [ "${{ github.ref_name }}" == "main" ]; then
+          echo "❌ Error: Cannot apply demo patches to the main branch"
+          echo "This workflow is blocked on the main branch for safety."
+          echo ""
+          echo "Please run this workflow from a different branch (e.g., develop, demo, feature/demo)"
+          exit 1
+        fi
+        echo "✅ Branch check passed: ${{ github.ref_name }}"
+
     - name: Checkout code
       uses: actions/checkout@v4
       with:
