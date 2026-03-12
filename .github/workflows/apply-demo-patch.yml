@@ -21,6 +21,8 @@ jobs:
   apply-patch:
     name: Apply or Revert Patch
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout code
