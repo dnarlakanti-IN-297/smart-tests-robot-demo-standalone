@@ -119,7 +119,7 @@ jobs:
 
     - name: Generate test list
       run: |
-        find tests/e2e -name "test_*.py" > test_list.txt
+        pytest --collect-only -q tests/e2e/ | grep "::" > test_list.txt || true
         cat test_list.txt
 
     - name: Create Smart Tests subset
