@@ -22,7 +22,7 @@ pytest tests/e2e/  # Runs all 29 E2E tests (~70 seconds)
 ### After Smart Tests
 ```bash
 # Generate test list (collect test cases)
-pytest --collect-only -q tests/e2e/ | grep "::" > test_list.txt
+pytest --collect-only -q tests/e2e/ > test_list.txt
 
 # Request subset (e.g., 50% of tests)
 cat test_list.txt | smart-tests subset pytest \
@@ -70,7 +70,7 @@ steps:
 
   - name: Generate test list
     run: |
-      pytest --collect-only -q tests/e2e/ | grep "::" > test_list.txt || true
+      pytest --collect-only -q tests/e2e/ > test_list.txt
       cat test_list.txt
 
   - name: Create Smart Tests subset
@@ -156,7 +156,7 @@ smart-tests record session \
   --test-suite pytest-e2e > session.txt
 
 # Generate test list (collect test cases)
-pytest --collect-only -q tests/e2e/ | grep "::" > test_list.txt
+pytest --collect-only -q tests/e2e/ > test_list.txt
 
 # Generate subset
 cat test_list.txt | smart-tests subset pytest \
