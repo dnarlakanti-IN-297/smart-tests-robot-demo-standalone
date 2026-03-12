@@ -30,7 +30,7 @@ cat test_list.txt | smart-tests subset pytest \
   --target 50% > smart-tests-subset.txt
 
 # Run only the subset (~35 seconds)
-pytest @smart-tests-subset.txt
+pytest -o junit_family=legacy --junit-xml=test-results/junit.xml @smart-tests-subset.txt
 ```
 
 ## Setup
@@ -83,7 +83,7 @@ steps:
   - name: Run E2E tests (Smart Tests subset)
     run: |
       if [ -s smart-tests-subset.txt ]; then
-        pytest -v --junit-xml=test-results/junit.xml @smart-tests-subset.txt
+        pytest -v -o junit_family=legacy --junit-xml=test-results/junit.xml @smart-tests-subset.txt
       else
         echo "No tests to run in subset"
       fi
@@ -164,7 +164,7 @@ cat test_list.txt | smart-tests subset pytest \
   --target 50% > subset.txt
 
 # Run subset
-pytest -v --junit-xml=test-results/junit.xml @subset.txt
+pytest -v -o junit_family=legacy --junit-xml=test-results/junit.xml @subset.txt
 
 # Record results
 smart-tests record tests pytest --session @session.txt "test-results/*.xml"

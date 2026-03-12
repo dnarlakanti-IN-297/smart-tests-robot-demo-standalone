@@ -130,7 +130,7 @@ jobs:
     - name: Run E2E tests (Smart Tests subset)
       run: |
         if [ -s smart-tests-subset.txt ]; then
-          pytest -v --video=retain-on-failure --screenshot=only-on-failure --junit-xml=test-results/junit.xml @smart-tests-subset.txt
+          pytest -v -o junit_family=legacy --video=retain-on-failure --screenshot=only-on-failure --junit-xml=test-results/junit.xml @smart-tests-subset.txt
         else
           echo "No tests to run in subset"
         fi
