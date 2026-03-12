@@ -1,0 +1,133 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  unit-and-integration-tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Create test database
+      run: |
+        python -c "from app.database import Base, engine; Base.metadata.create_all(bind=engine)"
+
+    - name: Run unit tests
+      run: |
+        pytest tests/unit/ -v --cov=app --cov-report=xml --cov-report=term
+
+    - name: Run integration tests
+      run: |
+        pytest tests/integration/ -v --cov=app --cov-append --cov-report=xml --cov-report=term
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests,integration
+        name: codecov-umbrella
+      continue-on-error: true
+
+  e2e-tests:
+    name: E2E Tests with Playwright
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Install Playwright browsers
+      run: |
+        playwright install --with-deps chromium
+
+    - name: Initialize database
+      run: |
+        python -c "from app.database import Base, engine; Base.metadata.create_all(bind=engine)"
+        python -m app.db.seed_data
+
+    - name: Start application
+      run: |
+        python run.py &
+        sleep 5
+        # Wait for application to be ready
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || \
+        timeout 30 bash -c 'until curl -f http://localhost:8000/ 2>/dev/null; do sleep 1; done'
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Run E2E tests
+      run: |
+        pytest tests/e2e/ -v --video=retain-on-failure --screenshot=only-on-failure
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Upload Playwright artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: |
+          test-results/
+          playwright-report/
+        retention-days: 7
+
+  code-quality:
+    name: Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+
+    - name: Run flake8
+      run: |
+        flake8 app/ tests/ --count --statistics
+      continue-on-error: true
+
+    - name: Check imports with isort
+      run: |
+        pip install isort
+        isort --check-only --diff app/ tests/
+      continue-on-error: true

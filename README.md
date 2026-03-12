@@ -1,5 +1,10 @@
 # Issue Tracker
 
+![Tests](https://github.com/xgalanxhi/issues-tracker-app/actions/workflows/tests.yml/badge.svg)
+![Python](https://img.shields.io/badge/python-3.11+-blue.svg)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.109-green.svg)
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+
 A modern issue tracking application built with FastAPI, SQLAlchemy, and Python. Features project management, issue tracking with statuses and priorities, comments, tags, and JWT authentication.
 
 ## Features
