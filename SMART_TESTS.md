@@ -24,7 +24,6 @@ find tests/e2e -name "test_*.py" > test_list.txt
 
 # Request subset (e.g., 50% of tests)
 cat test_list.txt | smart-tests subset playwright \
-  --build $BUILD_ID \
   --session @session.txt \
   --target 50% > smart-tests-subset.txt
 
@@ -73,7 +72,6 @@ steps:
   - name: Create Smart Tests subset
     run: |
       cat test_list.txt | smart-tests subset playwright \
-        --build ${{ github.run_id }} \
         --session @session.txt \
         --target 50% > smart-tests-subset.txt
 
@@ -150,7 +148,6 @@ smart-tests record session \
 # Generate subset
 find tests/e2e -name "test_*.py" | \
   smart-tests subset playwright \
-    --build local-$(date +%s) \
     --session @session.txt \
     --target 50% > subset.txt
 
