@@ -43,11 +43,21 @@ git apply -R patches/01-require-project-description.patch
 ```
 
 ### Use GitHub Actions workflow:
+
+**Prerequisites**: Create a patch branch first
+```bash
+git checkout -b patch-demo
+git push -u origin patch-demo
+```
+
 Navigate to Actions → "Apply CI Demo Patch" → Run workflow
 
 Options:
+- **Branch**: Select a branch starting with `patch-*` (e.g., `patch-demo`)
 - **action**: `apply` (introduce breaking changes) or `revert` (restore original)
 - **patch_name**: Name of patch file (e.g., `01-require-project-description.patch`)
+
+**Note**: This workflow only runs on branches starting with `patch-*` for safety.
 
 ## Future Patches
 

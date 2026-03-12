@@ -40,36 +40,44 @@ Comprehensive documentation for all patches and usage instructions.
 
 ### Option 1: GitHub Actions (Recommended for Demos)
 
-1. **Navigate to GitHub Actions**
+1. **Create a patch branch** (first time only)
+   ```bash
+   git checkout -b patch-demo
+   git push -u origin patch-demo
+   ```
+
+2. **Navigate to GitHub Actions**
    - Go to your repository on GitHub
    - Click the "Actions" tab
    - Select "Apply CI Demo Patch" workflow
 
-2. **Run the Workflow**
+3. **Run the Workflow**
    - Click "Run workflow" button
-   - Select branch: `main`
+   - Select branch: `patch-demo` (or any branch starting with `patch-`)
    - Choose action:
      - `apply` - Introduce breaking changes
      - `revert` - Restore original state
    - Enter patch name: `01-require-project-description.patch`
    - Click "Run workflow"
 
-3. **Watch the CI Pipeline**
-   - The workflow commits and pushes the changes
-   - This triggers the "Tests" workflow automatically
+4. **Watch the CI Pipeline**
+   - The workflow commits and pushes the changes to the `patch-demo` branch
+   - The Tests workflow runs automatically on the patch branch
    - Smart Tests will select relevant test subsets
    - Some tests will fail (intentionally)
 
-4. **Review Results**
+5. **Review Results**
    - Check the Tests workflow results
    - See which tests Smart Tests selected
    - Observe failure patterns
    - Review Smart Tests analytics on CloudBees platform
 
-5. **Restore Original State**
+6. **Restore Original State**
    - Run the workflow again with `revert` action
-   - This removes the breaking changes
+   - This removes the breaking changes from the patch branch
    - CI should pass again
+
+**Note**: The workflow only runs on branches starting with `patch-*` for safety. This prevents accidentally applying demo patches to production branches like `main` or `develop`.
 
 ### Option 2: Local Manual Application
 
