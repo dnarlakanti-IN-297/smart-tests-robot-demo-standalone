@@ -6,22 +6,29 @@ This directory contains patch files used for CI/CD demonstration purposes. These
 
 ### 01-require-project-description.patch
 
-**Purpose**: Makes project descriptions required, breaking tests that create projects without descriptions.
+**Purpose**: Makes project descriptions required with minimum 50 characters, breaking tests with short descriptions.
 
 **Changes**:
 - Makes `description` field required in Project model (non-nullable)
-- Updates ProjectCreate schema to require description (minimum 10 characters)
-- Adds validation in ProjectService to enforce description requirement
+- Updates ProjectCreate schema to require description (minimum 50 characters, maximum 500)
+- Adds validation in ProjectService to enforce 50-character minimum
 
 **Expected Impact**:
-- ❌ Breaks ~5-10 tests that create projects without descriptions
+- ❌ Breaks 8 tests (2 unit + 6 integration tests)
 - ✅ Demonstrates Smart Tests selecting relevant tests
 - 🎯 Shows CI catching breaking changes
 
 **Tests that will fail**:
-- Unit tests: `test_create_project` (without description)
-- Integration tests: `test_create_project` (without description)
-- E2E tests: `test_create_new_project` (may fail if no description provided)
+- Unit tests:
+  - `test_create_project` (description too short: "A new project" = 13 chars)
+  - `test_create_project_duplicate_key` (description too short: "Duplicate key" = 13 chars)
+- Integration tests:
+  - `test_create_project` (description too short)
+  - `test_create_project_duplicate_key` (description too short)
+  - `test_get_user_projects` (uses fixture with short description)
+  - `test_get_project_by_id` (uses fixture with short description)
+  - `test_update_project` (uses fixture with short description)
+  - Plus potentially more E2E tests
 
 ## Usage
 
