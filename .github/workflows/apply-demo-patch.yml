@@ -1,0 +1,146 @@
+name: Apply CI Demo Patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - apply
+          - revert
+        default: 'apply'
+      patch_name:
+        description: 'Patch file name (e.g., 01-require-project-description.patch)'
+        required: true
+        type: string
+        default: '01-require-project-description.patch'
+
+jobs:
+  apply-patch:
+    name: ${{ inputs.action == 'apply' && 'Apply' || 'Revert' }} Patch
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Configure Git
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+    - name: Verify patch exists
+      run: |
+        if [ ! -f "patches/${{ inputs.patch_name }}" ]; then
+          echo "❌ Error: Patch file 'patches/${{ inputs.patch_name }}' not found"
+          exit 1
+        fi
+        echo "✅ Found patch file: patches/${{ inputs.patch_name }}"
+        echo ""
+        echo "📄 Patch contents:"
+        cat "patches/${{ inputs.patch_name }}"
+
+    - name: Apply patch
+      if: inputs.action == 'apply'
+      run: |
+        echo "🔧 Applying patch: ${{ inputs.patch_name }}"
+        git apply "patches/${{ inputs.patch_name }}"
+
+        echo ""
+        echo "✅ Patch applied successfully!"
+        echo ""
+        echo "📝 Files changed:"
+        git status --short
+
+    - name: Revert patch
+      if: inputs.action == 'revert'
+      run: |
+        echo "↩️  Reverting patch: ${{ inputs.patch_name }}"
+        git apply -R "patches/${{ inputs.patch_name }}"
+
+        echo ""
+        echo "✅ Patch reverted successfully!"
+        echo ""
+        echo "📝 Files changed:"
+        git status --short
+
+    - name: Commit changes
+      run: |
+        # Check if there are changes to commit
+        if [[ -z $(git status --porcelain) ]]; then
+          echo "ℹ️  No changes to commit (patch may already be applied/reverted)"
+          exit 0
+        fi
+
+        # Stage all changes
+        git add -A
+
+        # Create commit message
+        if [ "${{ inputs.action }}" == "apply" ]; then
+          COMMIT_MSG="🧪 Apply demo patch: ${{ inputs.patch_name }}
+
+This is a demonstration commit to showcase CI/CD behavior.
+
+Patch: ${{ inputs.patch_name }}
+Action: Apply
+Triggered by: @${{ github.actor }}
+Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        else
+          COMMIT_MSG="↩️  Revert demo patch: ${{ inputs.patch_name }}
+
+This reverts the demonstration changes.
+
+Patch: ${{ inputs.patch_name }}
+Action: Revert
+Triggered by: @${{ github.actor }}
+Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        fi
+
+        # Commit
+        git commit -m "$COMMIT_MSG"
+
+        echo ""
+        echo "✅ Changes committed"
+
+    - name: Push changes
+      run: |
+        echo "🚀 Pushing changes to ${{ github.ref_name }}..."
+        git push origin ${{ github.ref_name }}
+
+        echo ""
+        echo "✅ Changes pushed successfully!"
+        echo ""
+        echo "🎯 This will trigger the CI pipeline with the ${{ inputs.action == 'apply' && 'breaking changes' || 'reverted code' }}"
+
+    - name: Summary
+      run: |
+        echo "## 🎉 Demo Patch Workflow Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Action**: ${{ inputs.action == 'apply' && '✅ Applied' || '↩️  Reverted' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Patch**: \`${{ inputs.patch_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Triggered by**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [ "${{ inputs.action }}" == "apply" ]; then
+          echo "### Expected CI Behavior" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ⚠️  Some tests will fail (intentionally)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧠 Smart Tests will select relevant test subsets" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Check the Tests workflow for results" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### Expected CI Behavior" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ All tests should pass" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔄 Repository restored to working state" >> $GITHUB_STEP_SUMMARY
+          echo "- 📊 Check the Tests workflow for results" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📚 View patch details: \`patches/README.md\`" >> $GITHUB_STEP_SUMMARY
