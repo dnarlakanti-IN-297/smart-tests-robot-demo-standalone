@@ -99,7 +99,7 @@ jobs:
 
     - name: Record session with Smart Tests
       run: |
-        smart-tests record session --build ${{ github.run_id }} --observation --test-suite playwright-e2e > session.txt
+        smart-tests record session --build ${{ github.run_id }} --observation --test-suite pytest-e2e > session.txt
         cat session.txt
 
     - name: Initialize database
@@ -124,7 +124,7 @@ jobs:
 
     - name: Create Smart Tests subset
       run: |
-        cat test_list.txt | smart-tests subset playwright --session @session.txt --target 50% > smart-tests-subset.txt
+        cat test_list.txt | smart-tests subset pytest --session @session.txt --target 50% > smart-tests-subset.txt
         cat smart-tests-subset.txt
 
     - name: Run E2E tests (Smart Tests subset)
@@ -140,7 +140,7 @@ jobs:
     - name: Record test results with Smart Tests
       if: always()
       run: |
-        smart-tests record tests playwright --session @session.txt "test-results"
+        smart-tests record tests pytest --session @session.txt "test-results/*.xml"
 
     - name: Upload Playwright artifacts
       if: failure()

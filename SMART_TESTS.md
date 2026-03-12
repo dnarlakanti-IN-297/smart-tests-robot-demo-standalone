@@ -2,6 +2,8 @@
 
 This project integrates [Smart Tests](https://docs.cloudbees.com/docs/cloudbees-platform/latest/analytics/smart-tests) to optimize E2E test execution by running only a subset of tests based on historical data and code changes.
 
+**Note:** We use `pytest` framework with Smart Tests (not `playwright`) because we run tests via `pytest` with the `pytest-playwright` plugin, not the Playwright CLI directly.
+
 ## What is Smart Tests?
 
 Smart Tests uses AI and historical test data to intelligently select which tests to run, reducing CI time while maintaining test coverage. It analyzes:
@@ -23,7 +25,7 @@ pytest tests/e2e/  # Runs all 29 E2E tests (~70 seconds)
 find tests/e2e -name "test_*.py" > test_list.txt
 
 # Request subset (e.g., 50% of tests)
-cat test_list.txt | smart-tests subset playwright \
+cat test_list.txt | smart-tests subset pytest \
   --session @session.txt \
   --target 50% > smart-tests-subset.txt
 
@@ -64,14 +66,14 @@ steps:
     run: smart-tests record build --build ${{ github.run_id }}
 
   - name: Record session with Smart Tests
-    run: smart-tests record session --build ${{ github.run_id }} --observation --test-suite playwright-e2e > session.txt
+    run: smart-tests record session --build ${{ github.run_id }} --observation --test-suite pytest-e2e > session.txt
 
   - name: Generate test list
     run: find tests/e2e -name "test_*.py" > test_list.txt
 
   - name: Create Smart Tests subset
     run: |
-      cat test_list.txt | smart-tests subset playwright \
+      cat test_list.txt | smart-tests subset pytest \
         --session @session.txt \
         --target 50% > smart-tests-subset.txt
 
@@ -80,7 +82,7 @@ steps:
 
   - name: Record test results with Smart Tests
     if: always()
-    run: smart-tests record tests playwright --session @session.txt "test-results"
+    run: smart-tests record tests pytest --session @session.txt "test-results/*.xml"
 ```
 
 ## Configuration Options
@@ -100,9 +102,9 @@ Control how many tests to run:
 Customize the test suite identifier:
 
 ```bash
---test-suite playwright-e2e          # E2E tests
---test-suite playwright-integration  # Integration tests
---test-suite playwright-smoke        # Smoke tests
+--test-suite pytest-e2e          # E2E tests with pytest
+--test-suite pytest-integration  # Integration tests
+--test-suite pytest-smoke        # Smoke tests
 ```
 
 ## Benefits
@@ -143,19 +145,21 @@ smart-tests record build --build local-$(date +%s)
 smart-tests record session \
   --build local-$(date +%s) \
   --observation \
-  --test-suite playwright-e2e > session.txt
+  --test-suite pytest-e2e > session.txt
+
+# Generate test list
+find tests/e2e -name "test_*.py" > test_list.txt
 
 # Generate subset
-find tests/e2e -name "test_*.py" | \
-  smart-tests subset playwright \
-    --session @session.txt \
-    --target 50% > subset.txt
+cat test_list.txt | smart-tests subset pytest \
+  --session @session.txt \
+  --target 50% > subset.txt
 
 # Run subset
-pytest $(cat subset.txt) -v
+pytest $(cat subset.txt) -v --junit-xml=test-results/junit.xml
 
 # Record results
-smart-tests record tests playwright --session @session.txt "test-results"
+smart-tests record tests pytest --session @session.txt "test-results/*.xml"
 ```
 
 ## Troubleshooting
