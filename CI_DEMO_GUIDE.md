@@ -12,15 +12,26 @@ The CI demo patch system allows you to simulate code changes that break tests, d
 
 ## 📁 What Was Created
 
-### 1. Patch File
-**Location**: `patches/01-require-project-description.patch`
+### 1. Patch Files
+**Location**: `patches/`
 
-**Changes**: Makes project descriptions required (minimum 10 characters)
-- Model: `description = Column(Text, nullable=False)`
-- Schema: `description: str = Field(..., min_length=10, max_length=500)`
-- Service: Adds validation to enforce description requirement
+**Available patches** (can be applied independently or combined):
 
-**Expected Test Failures**: ~5-10 tests that create projects without descriptions
+1. **01-require-project-description.patch** - 8 test failures
+   - Makes project descriptions required (minimum 50 characters)
+
+2. **02-require-long-issue-titles.patch** - 10 test failures
+   - Requires issue titles to be minimum 20 characters
+
+3. **03-require-long-comments.patch** - 10 test failures
+   - Requires comments to be minimum 15 characters
+
+4. **04-require-corporate-email.patch** - 7 test failures
+   - Requires corporate email domains (company.com, corp.com, enterprise.com)
+
+**Total available failures**: ~35 tests when all patches applied together
+
+See `patches/README.md` for detailed documentation of each patch.
 
 ### 2. GitHub Actions Workflow
 **Location**: `.github/workflows/apply-demo-patch.yml`
@@ -29,7 +40,9 @@ The CI demo patch system allows you to simulate code changes that break tests, d
 
 **Inputs**:
 - `action`: Choose `apply` or `revert`
-- `patch_name`: Patch file name (default: `01-require-project-description.patch`)
+- `patch_name`: Patch file name (e.g., `01-require-project-description.patch`, `02-require-long-issue-titles.patch`, etc.)
+
+**Note**: Apply patches one at a time using the workflow, or apply multiple locally then push.
 
 ### 3. Documentation
 **Location**: `patches/README.md`
@@ -132,24 +145,28 @@ git apply -R patches/01-require-project-description.patch
 
 ## 📊 Expected Results
 
-### When Patch is Applied:
+### When Patches Are Applied:
 
-**Unit Tests** (may fail):
-```
-tests/unit/test_project_service.py::TestProjectService::test_create_project
-tests/unit/test_project_service.py::TestProjectService::test_create_project_duplicate_key
-```
+**Patch 1 (Project Descriptions)** - 8 failures:
+- 2 unit tests (project service)
+- 6 integration tests (project API)
 
-**Integration Tests** (may fail):
-```
-tests/integration/test_projects_api.py::TestProjectsAPI::test_create_project
-tests/integration/test_projects_api.py::TestProjectsAPI::test_create_project_invalid_key
-```
+**Patch 2 (Issue Titles)** - 10 failures:
+- 5 unit tests (issue service)
+- 5 integration tests (issue API)
 
-**E2E Tests** (may fail):
-```
-tests/e2e/test_projects_e2e.py::test_create_new_project[chromium]
-```
+**Patch 3 (Comments)** - 10 failures:
+- 8 unit tests (comment service)
+- 2 integration tests (comment API)
+
+**Patch 4 (Corporate Emails)** - 7 failures:
+- 3 unit tests (user service)
+- 4 integration tests (auth API)
+
+**All Patches Combined** - ~35 failures:
+- Demonstrates broad impact across codebase
+- Shows Smart Tests prioritizing relevant domains
+- Perfect for comprehensive CI demonstrations
 
 ### Smart Tests Behavior:
 
