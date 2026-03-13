@@ -4,6 +4,8 @@ This directory contains patch files used for CI/CD demonstration purposes. These
 
 ## Available Patches
 
+**Note**: All patches are independent and can be applied in any order or combination.
+
 ### 01-require-project-description.patch
 
 **Purpose**: Makes project descriptions required with minimum 50 characters, breaking tests with short descriptions.
@@ -29,6 +31,80 @@ This directory contains patch files used for CI/CD demonstration purposes. These
   - `test_get_project_by_id` (uses fixture with short description)
   - `test_update_project` (uses fixture with short description)
   - Plus potentially more E2E tests
+
+### 02-require-long-issue-titles.patch
+
+**Purpose**: Makes issue titles require minimum 20 characters.
+
+**Changes**:
+- Updates IssueBase schema to require `title` minimum 20 characters (was 1)
+- Updates IssueUpdate schema with same validation
+
+**Expected Impact**:
+- ❌ Breaks ~10 tests (5 unit + 5 integration tests)
+- ✅ Affects issue-related tests only
+- 🎯 Shows validation of user input
+
+**Tests that will fail**:
+- Unit tests: `test_create_issue`, `test_create_issue_no_access`, `test_update_issue`, `test_create_issue_with_tags`
+- Integration tests: `test_create_issue`, `test_create_issue_without_access`, `test_update_issue`, `test_update_issue_status`
+
+### 03-require-long-comments.patch
+
+**Purpose**: Makes comments require minimum 15 characters.
+
+**Changes**:
+- Updates CommentBase schema to require `content` minimum 15 characters (was 1)
+- Updates CommentUpdate schema with same validation
+- Adds maximum 1000 characters limit
+
+**Expected Impact**:
+- ❌ Breaks ~10 tests (8 unit + 2 integration tests)
+- ✅ Affects comment-related tests only
+- 🎯 Demonstrates data quality requirements
+
+**Tests that will fail**:
+- Unit tests: All comment service tests that use short comments
+- Integration tests: `test_get_comments_by_issue`, `test_update_comment_by_non_author`
+
+### 04-require-corporate-email.patch
+
+**Purpose**: Requires users to have corporate email addresses from approved domains.
+
+**Changes**:
+- Adds email validation to UserBase schema
+- Requires email domain to be one of: `company.com`, `corp.com`, `enterprise.com`
+- Uses Pydantic field_validator for validation
+
+**Expected Impact**:
+- ❌ Breaks ~7 tests (3 unit + 4 integration tests)
+- ✅ Affects user/auth tests only
+- 🎯 Shows business rule enforcement
+
+**Tests that will fail**:
+- Unit tests: `test_create_user`, `test_create_user_duplicate_email`, `test_create_user_duplicate_username`
+- Integration tests: `test_register_user`, `test_register_duplicate_email`, `test_register_duplicate_username`, `test_access_protected_endpoint_with_token`
+
+## Combining Patches
+
+All patches are independent and can be combined:
+
+```bash
+# Apply multiple patches at once
+git apply patches/01-require-project-description.patch
+git apply patches/02-require-long-issue-titles.patch
+git apply patches/03-require-long-comments.patch
+git apply patches/04-require-corporate-email.patch
+
+# This will break ~35 total tests across the entire codebase
+```
+
+**Expected failures when all patches applied**:
+- Project tests: 8 failures
+- Issue tests: 10 failures
+- Comment tests: 10 failures
+- User/Auth tests: 7 failures
+- **Total: ~35 test failures** (perfect for comprehensive CI demos)
 
 ## Usage
 
@@ -59,12 +135,35 @@ Options:
 
 **Note**: This workflow only runs on branches starting with `patch-*` for safety.
 
-## Future Patches
+## Patch Combinations for Different Demo Scenarios
 
-Planned timeline of patches for comprehensive CI demos:
-- `02-break-tests.patch` - Intentional test failures
-- `03-fix-tests.patch` - Fix the broken tests
-- `04-refactor.patch` - Code refactoring without behavior changes
+### Scenario 1: Small Impact
+Apply one patch to show focused test failures:
+```bash
+git apply patches/04-require-corporate-email.patch  # 7 failures
+```
+
+### Scenario 2: Medium Impact
+Apply 2-3 patches for broader test coverage:
+```bash
+git apply patches/01-require-project-description.patch  # 8 failures
+git apply patches/02-require-long-issue-titles.patch   # 10 failures
+# Total: ~18 failures
+```
+
+### Scenario 3: High Impact
+Apply all patches for maximum demonstration:
+```bash
+git apply patches/*.patch  # All 4 patches
+# Total: ~35 failures across all test suites
+```
+
+## Future Enhancements
+
+Potential additional patches:
+- Fix patches that resolve the breaking changes
+- Refactoring patches that improve code without breaking tests
+- Performance optimization patches
 
 ## Notes
 

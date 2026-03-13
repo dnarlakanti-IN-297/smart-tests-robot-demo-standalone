@@ -1,0 +1,30 @@
+diff --git a/app/schemas/user.py b/app/schemas/user.py
+index a744655..d3a6e5f 100644
+--- a/app/schemas/user.py
++++ b/app/schemas/user.py
+@@ -3,7 +3,7 @@
+ from datetime import datetime
+ from typing import Optional
+ 
+-from pydantic import BaseModel, EmailStr, Field
++from pydantic import BaseModel, EmailStr, Field, field_validator
+ 
+ 
+ class UserBase(BaseModel):
+@@ -13,6 +13,16 @@ class UserBase(BaseModel):
+     username: str = Field(..., min_length=3, max_length=50)
+     full_name: str = Field(..., min_length=1, max_length=100)
+ 
++    @field_validator('email')
++    @classmethod
++    def validate_corporate_email(cls, v):
++        """Require corporate email addresses"""
++        allowed_domains = ['company.com', 'corp.com', 'enterprise.com']
++        email_domain = str(v).split('@')[1] if '@' in str(v) else ''
++        if email_domain not in allowed_domains:
++            raise ValueError(f'Email must be from allowed domains: {", ".join(allowed_domains)}')
++        return v
++
+ 
+ class UserCreate(UserBase):
+     """Schema for creating a user"""

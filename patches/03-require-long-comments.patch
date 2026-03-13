@@ -1,0 +1,22 @@
+diff --git a/app/schemas/comment.py b/app/schemas/comment.py
+index 03fdfbd..150b6e0 100644
+--- a/app/schemas/comment.py
++++ b/app/schemas/comment.py
+@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
+ class CommentBase(BaseModel):
+     """Base comment schema"""
+ 
+-    content: str = Field(..., min_length=1)
++    content: str = Field(..., min_length=15, max_length=1000)
+ 
+ 
+ class CommentCreate(CommentBase):
+@@ -21,7 +21,7 @@ class CommentCreate(CommentBase):
+ class CommentUpdate(BaseModel):
+     """Schema for updating a comment"""
+ 
+-    content: str = Field(..., min_length=1)
++    content: str = Field(..., min_length=15, max_length=1000)
+ 
+ 
+ class Comment(CommentBase):
