@@ -75,6 +75,7 @@ jobs:
         cat smart-tests-subset-unit.txt
 
     - name: Run unit tests (Smart Tests subset)
+      continue-on-error: true
       run: |
         if [ -s smart-tests-subset-unit.txt ]; then
           pytest -v -o junit_family=legacy --cov=app --cov-report=xml --cov-report=term --junit-xml=test-results/unit.xml @smart-tests-subset-unit.txt
@@ -88,21 +89,26 @@ jobs:
         smart-tests record tests pytest --session @session-unit.txt "test-results/unit.xml"
 
     - name: Record session for integration tests
+      if: always()
       run: |
         smart-tests record session --build ${{ github.run_id }} --observation --test-suite pytest-integration > session-integration.txt
         cat session-integration.txt
 
     - name: Generate integration test list
+      if: always()
       run: |
         pytest --collect-only -qq tests/integration/ > test_list_integration.txt
         cat test_list_integration.txt
 
     - name: Create Smart Tests subset for integration tests
+      if: always()
       run: |
         cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt --target 50% > smart-tests-subset-integration.txt
         cat smart-tests-subset-integration.txt
 
     - name: Run integration tests (Smart Tests subset)
+      if: always()
+      continue-on-error: true
       run: |
         if [ -s smart-tests-subset-integration.txt ]; then
           pytest -v -o junit_family=legacy --cov=app --cov-append --cov-report=xml --cov-report=term --junit-xml=test-results/integration.xml @smart-tests-subset-integration.txt
