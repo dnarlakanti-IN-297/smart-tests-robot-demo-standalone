@@ -51,6 +51,15 @@ Before starting, familiarize yourself with these terms:
 - GitHub account
 - CloudBees account (free tier available at [cloudbees.io](https://cloudbees.io))
 
+> **⚠️ IMPORTANT: PTSv2 Requirement**
+>
+> Your CloudBees organization or sub-organization **must have PTSv2 (Predictive Test Selection v2) enabled** for Smart Tests to run predictive test selection.
+>
+> **Not sure if PTSv2 is enabled?**
+> Send a Slack message to the **#team-smart-tests-se** channel with your organization or sub-organization ID to verify or request enablement.
+>
+> Without PTSv2 enabled, the workflows will run but Smart Tests will not generate predictive test subsets.
+
 ---
 
 ## Phase 1: Setup (One-Time Configuration)
@@ -218,6 +227,12 @@ To start fresh with a new experiment:
 - Verify `SMART_TESTS_TOKEN` secret is set correctly
 - Check workflow logs for Smart Tests CLI output
 - Ensure your CloudBees account is active
+- **Verify PTSv2 is enabled**: Send your organization/sub-organization ID to #team-smart-tests-se Slack channel
+
+### Smart Tests not generating predictions?
+- Check that PTSv2 (Predictive Test Selection v2) is enabled for your CloudBees organization
+- Contact #team-smart-tests-se on Slack with your organization ID to verify enablement
+- Workflows will run successfully but won't generate test subsets without PTSv2
 
 ### Patches failing to apply?
 - Ensure you're using a branch starting with `patch-`

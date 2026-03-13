@@ -8,6 +8,9 @@
 
 **A demonstration repository showcasing [CloudBees Smart Tests](https://www.cloudbees.com/products/smart-tests) predictive test selection capabilities with a Python application and pytest test suite.**
 
+
+**Ready to see Smart Tests in action? Start with [QUICKSTART GUIDE](./QUICKSTART.md)!** 🚀
+
 This repository contains a fully functional Issue Tracker application built with FastAPI, complete with 140+ tests (unit, integration, and E2E) that demonstrate how Smart Tests uses AI to intelligently predict and select only the relevant tests based on code changes, reducing CI execution time by 50% or more.
 
 ## 🎯 What This Repository Demonstrates
@@ -22,7 +25,10 @@ This repository contains a fully functional Issue Tracker application built with
 
 **Choose your path based on what you want to do:**
 
-### 🎬 I Want to Run the Smart Tests Demo
+<details>
+<summary><strong>🎬 I Want to Run the Smart Tests Demo</strong></summary>
+
+<br>
 
 **→ [QUICKSTART.md](./QUICKSTART.md)** - Complete step-by-step guide to:
 - Fork the repository and set up Smart Tests
@@ -34,9 +40,12 @@ This repository contains a fully functional Issue Tracker application built with
 **Time Required:** 15-20 minutes
 **Prerequisites:** GitHub account, CloudBees account (free tier)
 
----
+</details>
 
-### 🔧 I Want to Run the Application Locally
+<details>
+<summary><strong>🔧 I Want to Run the Application Locally</strong></summary>
+
+<br>
 
 **→ [TECHNICAL_REFERENCE.md - Section 7: Local Development Setup](./TECHNICAL_REFERENCE.md#7-local-development-setup)**
 
@@ -56,9 +65,12 @@ make run
 
 Application runs at: http://localhost:8000
 
----
+</details>
 
-### 📚 I Want Complete Technical Documentation
+<details>
+<summary><strong>📚 I Want Complete Technical Documentation</strong></summary>
+
+<br>
 
 **→ [TECHNICAL_REFERENCE.md](./TECHNICAL_REFERENCE.md)** - Comprehensive reference covering:
 1. Application Specifications (tech stack, dependencies, configuration)
@@ -72,9 +84,12 @@ Application runs at: http://localhost:8000
 9. Code Quality and Standards (formatting, linting, style)
 10. Project Structure (directory tree, architecture)
 
----
+</details>
 
-### 🧪 I Want to Understand the Test Suite
+<details>
+<summary><strong>🧪 I Want to Understand the Test Suite</strong></summary>
+
+<br>
 
 **→ [TECHNICAL_REFERENCE.md - Section 4: Testing Architecture](./TECHNICAL_REFERENCE.md#4-testing-architecture)**
 
@@ -90,9 +105,12 @@ make test-e2e         # End-to-end tests
 make test-all         # All tests
 ```
 
----
+</details>
 
-### 🔬 I Want to Understand Smart Tests Integration
+<details>
+<summary><strong>🔬 I Want to Understand Smart Tests Integration</strong></summary>
+
+<br>
 
 **→ [TECHNICAL_REFERENCE.md - Section 6: Smart Tests Integration](./TECHNICAL_REFERENCE.md#6-smart-tests-integration)**
 
@@ -103,9 +121,12 @@ Learn about:
 - JUnit XML configuration
 - Viewing results in CloudBees platform
 
----
+</details>
 
-### 🎨 I Want to Create New Demo Patches
+<details>
+<summary><strong>🎨 I Want to Create New Demo Patches</strong></summary>
+
+<br>
 
 **→ [patches/CREATING_NEW_PATCHES.md](./patches/CREATING_NEW_PATCHES.md)** - Complete guide including:
 - What makes a good demo patch
@@ -117,9 +138,12 @@ Learn about:
 
 **→ [patches/README.md](./patches/README.md)** - Documentation of existing patches
 
----
+</details>
 
-### 🔄 I Want to Understand the CI/CD Workflows
+<details>
+<summary><strong>🔄 I Want to Understand the CI/CD Workflows</strong></summary>
+
+<br>
 
 **→ [TECHNICAL_REFERENCE.md - Section 5: GitHub Actions and CI/CD](./TECHNICAL_REFERENCE.md#5-github-actions-and-cicd)**
 
@@ -129,76 +153,7 @@ GitHub Actions workflows:
 
 Both workflows fully documented with step-by-step breakdowns.
 
----
+</details>
 
-## 📊 Repository Statistics
 
-- **Application**: 45 Python files, ~2,300 lines of code
-- **Tests**: 140+ tests across 14 test files
-- **Tech Stack**: Python 3.11+, FastAPI, SQLAlchemy, pytest, Playwright
-- **Smart Tests**: Integrated with all 3 test suites (unit, integration, E2E)
-- **Demo Patches**: 4 independent patches demonstrating different scenarios
 
-## 🏗️ Application Architecture
-
-**Layered Architecture:**
-```
-Routes → Services → Repositories → Models
-  ↓         ↓            ↓           ↓
-HTTP    Business     Database    SQLAlchemy
-Layer    Logic        Access       ORM
-```
-
-**Domain Models:**
-- User (authentication, roles)
-- Project (workspaces with members)
-- Issue (trackable items with status, type, priority)
-- Comment (discussions)
-- Tag (labels for organization)
-
-See [TECHNICAL_REFERENCE.md](./TECHNICAL_REFERENCE.md) for complete architecture documentation.
-
----
-
-## 📖 Additional Documentation
-
-- **[QUICKSTART.md](./QUICKSTART.md)** - Step-by-step Smart Tests demo guide
-- **[TECHNICAL_REFERENCE.md](./TECHNICAL_REFERENCE.md)** - Complete technical documentation (10 chapters)
-- **[patches/README.md](./patches/README.md)** - Demo patches documentation
-- **[patches/CREATING_NEW_PATCHES.md](./patches/CREATING_NEW_PATCHES.md)** - Patch creation guide
-- **[patches/AI_PATCH_GENERATION_PROMPT.txt](./patches/AI_PATCH_GENERATION_PROMPT.txt)** - AI assistant prompt template
-
----
-
-## 🤝 Contributing
-
-This is a demonstration repository. If you'd like to contribute:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Ensure tests pass: `make test`
-5. Format code: `make format`
-6. Submit a pull request
-
----
-
-## 📝 License
-
-MIT License - see LICENSE file for details.
-
-## 🔗 Links
-
-- **CloudBees Smart Tests**: https://www.cloudbees.com/products/smart-tests
-- **CloudBees Documentation**: https://docs.cloudbees.com/docs/cloudbees-platform/latest/analytics/smart-testing
-- **GitHub Repository**: https://github.com/xgalanxhi/issue-tracker-app
-
-## 💬 Questions or Issues?
-
-- Open an issue on GitHub
-- Refer to the [TECHNICAL_REFERENCE.md](./TECHNICAL_REFERENCE.md) for troubleshooting
-- Check the [QUICKSTART.md](./QUICKSTART.md) for setup help
-
----
-
-**Ready to see Smart Tests in action? Start with [QUICKSTART.md](./QUICKSTART.md)!** 🚀

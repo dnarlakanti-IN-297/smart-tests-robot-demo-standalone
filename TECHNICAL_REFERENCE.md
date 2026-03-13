@@ -846,6 +846,15 @@ skip_covered = false
 **Purpose**: AI-powered predictive test selection
 **Mode**: Observation mode (runs all tests, predicts subset)
 
+**⚠️ IMPORTANT PREREQUISITE:**
+
+Your CloudBees organization or sub-organization **must have PTSv2 (Predictive Test Selection v2) enabled** for Smart Tests to perform predictive test selection. Without PTSv2 enabled, workflows will execute but Smart Tests will not generate test subset predictions.
+
+**To verify or enable PTSv2:**
+- Contact the CloudBees Smart Tests team via Slack: **#team-smart-tests-se**
+- Provide your organization or sub-organization ID
+- Request PTSv2 enablement if not already active
+
 ### 6.2 Installation
 
 ```bash
@@ -1789,6 +1798,23 @@ cd patches            # Demo patches
 **Issue: Playwright browser not found**
 - **Cause**: Browsers not installed
 - **Solution**: `playwright install chromium`
+
+**Issue: Smart Tests not generating test subset predictions**
+- **Cause**: PTSv2 (Predictive Test Selection v2) not enabled for your CloudBees organization
+- **Solution**: Contact #team-smart-tests-se on Slack with your organization/sub-organization ID to request PTSv2 enablement
+- **Note**: Workflows will run successfully but won't generate predictive subsets without PTSv2
+
+**Issue: No test results visible in CloudBees Smart Tests dashboard**
+- **Cause**: Multiple possible causes
+  - SMART_TESTS_TOKEN not configured correctly
+  - PTSv2 not enabled
+  - Network connectivity issues
+  - Organization permissions
+- **Solution**:
+  - Verify `SMART_TESTS_TOKEN` secret in GitHub repository settings
+  - Check workflow logs for Smart Tests CLI errors
+  - Verify PTSv2 is enabled for your organization
+  - Contact #team-smart-tests-se for assistance
 
 ### B.2 Debug Commands
 
