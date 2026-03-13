@@ -12,9 +12,14 @@ on:
           - revert
         default: 'apply'
       patch_name:
-        description: 'Patch file name (e.g., 01-require-project-description.patch)'
+        description: 'Patch to apply'
         required: true
-        type: string
+        type: choice
+        options:
+          - 01-require-project-description.patch
+          - 02-require-long-issue-titles.patch
+          - 03-require-long-comments.patch
+          - 04-require-corporate-email.patch
         default: '01-require-project-description.patch'
 
 jobs:
