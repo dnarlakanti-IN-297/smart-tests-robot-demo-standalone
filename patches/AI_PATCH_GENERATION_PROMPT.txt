@@ -1,0 +1,143 @@
+========================================
+AI PROMPT FOR GENERATING NEW DEMO PATCHES
+========================================
+
+Copy and paste this prompt to an AI assistant (Claude, ChatGPT, etc.) to generate new patches:
+
+---
+
+I need to create a new demo patch for the Issue Tracker application (Python/FastAPI project) that will intentionally break some tests to demonstrate Smart Tests' predictive test selection capabilities.
+
+REPOSITORY CONTEXT:
+- Tech Stack: Python 3.11+, FastAPI, SQLAlchemy, pytest
+- Architecture: Layered (routes → services → repositories → models)
+- Domain Models: Users, Projects, Issues, Comments, Tags
+- Test Coverage: Unit tests, integration tests, E2E tests
+
+EXISTING PATCHES (must not conflict):
+1. 01-require-project-description.patch
+   - Makes project descriptions required (50+ characters)
+   - Breaks 8 tests (2 unit + 6 integration)
+
+2. 02-require-long-issue-titles.patch
+   - Requires issue titles minimum 20 characters
+   - Breaks ~10 tests (5 unit + 5 integration)
+
+3. 03-require-long-comments.patch
+   - Requires comments 15-1000 characters
+   - Breaks ~10 tests (8 unit + 2 integration)
+
+4. 04-require-corporate-email.patch
+   - Requires corporate email domains (company.com, corp.com, enterprise.com)
+   - Breaks ~7 tests (3 unit + 4 integration)
+
+PATCH REQUIREMENTS:
+1. Must break 5-15 tests (realistic demo scope)
+2. Must be independent (no conflicts with existing patches)
+3. Should simulate realistic development scenarios
+4. Must be reversible (git apply / git apply -R)
+5. Should modify application code only (not test files)
+
+TARGET DOMAIN:
+[SPECIFY ONE: Projects / Issues / Comments / Tags / Users / Assignments / Status Workflow]
+OR: Suggest the best domain based on existing patches
+
+CHANGE IDEA:
+[DESCRIBE YOUR IDEA, or ask "Please suggest a realistic breaking change"]
+
+DELIVERABLES NEEDED:
+1. **File Changes**: Show exact modifications needed for:
+   - app/schemas/[domain].py (Pydantic validation)
+   - app/models/[domain].py (SQLAlchemy models, if needed)
+   - app/services/[domain]_service.py (Business logic, if needed)
+
+2. **Patch File**: Generate the complete git diff patch file content
+
+3. **Test Analysis**:
+   - Which tests will break and why?
+   - Estimated test failure count (unit + integration)
+
+4. **Documentation**: Write the patch section for patches/README.md including:
+   - Purpose and changes
+   - Expected impact
+   - List of failing tests
+
+5. **Independence Verification**: Confirm no conflicts with existing patches
+
+EXAMPLE OUTPUT FORMAT:
+
+```markdown
+### Patch 05: [Name]
+
+**Changes needed:**
+
+File: app/schemas/issue.py
+- Change line X from Y to Z
+- Add validation for field W
+
+File: app/services/issue_service.py
+- Add business logic check at line X
+
+**Patch file content:**
+```diff
+diff --git a/app/schemas/issue.py b/app/schemas/issue.py
+index abc1234..def5678 100644
+--- a/app/schemas/issue.py
++++ b/app/schemas/issue.py
+@@ -15,7 +15,7 @@ class IssueBase(BaseModel):
+-    field: Optional[str] = None
++    field: str = Field(..., min_length=10)
+```
+
+**Tests that will break:**
+- test_create_issue (line X, reason)
+- test_update_issue (line Y, reason)
+[... complete list]
+
+**Total impact:** 8 tests (4 unit + 4 integration)
+
+**Independence check:** ✅ No conflicts with patches 01-04
+```
+
+VALIDATION CHECKLIST:
+- [ ] Change is realistic (not artificial)
+- [ ] Breaks 5-15 tests
+- [ ] No conflicts with existing patches
+- [ ] Only modifies application code
+- [ ] Changes are in app/schemas, app/models, or app/services
+- [ ] Patch can be cleanly applied and reverted
+
+Please generate the patch following this format.
+
+---
+
+END OF PROMPT
+========================================
+
+USAGE INSTRUCTIONS:
+1. Copy everything between the "---" markers
+2. Replace [SPECIFY ONE] with your target domain
+3. Replace [DESCRIBE YOUR IDEA] with your change idea (or ask AI to suggest)
+4. Paste into your AI assistant
+5. Review the output and verify against the validation checklist
+6. Follow the steps in CREATING_NEW_PATCHES.md to implement and test
+
+EXAMPLE CUSTOMIZATIONS:
+
+For a specific idea:
+---
+TARGET DOMAIN: Issues
+CHANGE IDEA: Require that all issues must have at least one tag assigned. This enforces better organization and searchability.
+---
+
+To get suggestions:
+---
+TARGET DOMAIN: Please suggest the best domain to avoid overlap with existing patches
+CHANGE IDEA: Please suggest a realistic breaking change that would make a good demo
+---
+
+For advanced scenarios:
+---
+TARGET DOMAIN: Status Workflow (Issues)
+CHANGE IDEA: Enforce status transition rules - issues must progress through states in order (OPEN → IN_PROGRESS → RESOLVED → CLOSED) and cannot skip states or go backwards
+---

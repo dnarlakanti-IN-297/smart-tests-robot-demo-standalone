@@ -165,6 +165,28 @@ Potential additional patches:
 - Refactoring patches that improve code without breaking tests
 - Performance optimization patches
 
+## Creating New Patches
+
+Want to create additional demo patches? See:
+
+- **[CREATING_NEW_PATCHES.md](./CREATING_NEW_PATCHES.md)** - Comprehensive guide to creating new demo patches with step-by-step instructions, requirements, and examples
+- **[AI_PATCH_GENERATION_PROMPT.txt](./AI_PATCH_GENERATION_PROMPT.txt)** - Ready-to-use prompt template for AI assistants to help generate patches
+
+**Quick start:**
+1. Read CREATING_NEW_PATCHES.md to understand the process
+2. Copy the prompt from AI_PATCH_GENERATION_PROMPT.txt
+3. Customize it with your target domain and change idea
+4. Use an AI assistant to generate the patch code
+5. Test, validate, and document your patch
+
+**Patch ideas:**
+- Require issue assignees
+- Validate tag name format (alphanumeric, length limits)
+- Enforce project member restrictions
+- Add issue status transition rules
+- Enhance password complexity requirements
+- Add due date validation for issues
+
 ## Notes
 
 - These patches are for demonstration purposes only
