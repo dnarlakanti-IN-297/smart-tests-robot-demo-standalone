@@ -1,0 +1,439 @@
+= Smart Tests Adoption Journey: Qualification Requirements
+
+== Overview
+
+This document outlines the requirements that a customer account must meet to qualify for the Smart Tests Adoption Journey. These requirements ensure that Smart Tests can deliver meaningful value through predictive test selection.
+
+*Purpose*: Validate customer readiness before beginning Smart Tests implementation.
+
+*Target Audience*: Solutions Engineers, Professional Services, Customer Success teams evaluating Smart Tests opportunities.
+
+'''
+
+== Overall Requirements
+
+Before proceeding with Smart Tests adoption, the customer must meet ALL of the following requirements:
+
+=== 1. Long-Running Test Suite
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Minimum Runtime*
+| Full test suite must take *15+ minutes* to execute
+
+| *Rationale*
+| Smart Tests provides the most value when test execution time is significant. Shorter test suites (<15 minutes) may not justify the implementation effort.
+
+| *How to Measure*
+| Review recent CI/CD pipeline execution times for test stages
+|===
+
+[TIP]
+.Ideal Candidates
+====
+* Test suites taking 30-60+ minutes: High value opportunity
+* Test suites taking 15-30 minutes: Good candidate
+* Test suites taking <15 minutes: Consider future growth or wait until suite grows
+====
+
+=== 2. Independent Tests
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Test Independence*
+| Tests must be *independently executable* without dependencies on test execution order
+
+| *Rationale*
+| Smart Tests creates subsets of tests to run. If tests depend on other tests running first (shared state, execution order), subsetting will cause failures.
+
+| *How to Validate*
+| Tests can be run in isolation or random order without affecting results
+|===
+
+[WARNING]
+.Common Anti-Patterns That Disqualify
+====
+* Tests that rely on shared global state modified by other tests
+* Tests that must run in specific order (Test B depends on Test A's side effects)
+* Test suites using `pytest.mark.dependency` or similar ordering mechanisms
+* Setup/teardown logic that assumes all tests run together
+
+*If these patterns exist*, customer must refactor tests before Smart Tests adoption.
+====
+
+=== 3. Git Version Control
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Version Control*
+| Customer must be using *Git* for source control
+
+| *Rationale*
+| Smart Tests analyzes code changes via `git diff` to predict affected tests. Git is the only supported VCS.
+
+| *Supported*
+| GitHub, GitLab, Bitbucket, Azure Repos, self-hosted Git servers
+
+| *Not Supported*
+| Subversion (SVN), Mercurial, Perforce, TFS (non-Git)
+|===
+
+=== 4. Test File Organization
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *File Structure*
+| Tests must be organized across *multiple test files*, not a single monolithic file
+
+| *Rationale*
+| Smart Tests maps code changes to test files. A single file containing all tests prevents effective subsetting.
+
+| *Good Structure*
+| Tests organized by feature, module, layer, or functional area across multiple files
+
+| *Disqualifying Structure*
+| Single `test_all.py` or `tests.js` file containing hundreds/thousands of tests
+|===
+
+[TIP]
+.Acceptable Organization Patterns
+====
+----
+✓ By feature:
+  tests/auth/test_login.py
+  tests/auth/test_permissions.py
+  tests/billing/test_invoices.py
+
+✓ By layer:
+  tests/unit/test_services.py
+  tests/integration/test_api.py
+  tests/e2e/test_workflows.py
+
+✓ By module:
+  tests/test_user_service.py
+  tests/test_project_service.py
+  tests/test_issue_service.py
+
+✗ Disqualifying:
+  tests/test_all.py (5000 tests in one file)
+----
+====
+
+'''
+
+== Supported Test Frameworks
+
+The customer must be using one of the officially supported test frameworks listed below. Smart Tests CLI integration varies by framework.
+
+=== Framework Compatibility Matrix
+
+[cols="30%,25%,25%,20%",options="header"]
+|===
+| Test Framework
+| `test_runner` Value
+| Additional Setup Required
+| Language/Ecosystem
+
+| *Ant*
+| `ant`
+| No
+| Java
+
+| *Bazel*
+| `bazel`
+| No
+| Multi-language
+
+| *Behave*
+| `behave`
+| Yes
+| Python (BDD)
+
+| *CTest*
+| `ctest`
+| Yes
+| C/C++ (CMake)
+
+| *Cucumber*
+| `cucumber`
+| Yes
+| Multi-language (BDD)
+
+| *Cypress*
+| `cypress`
+| No
+| JavaScript (E2E)
+
+| *GoogleTest*
+| `googletest`
+| Yes
+| C++
+
+| *Go Test*
+| `go-test`
+| Yes
+| Go
+
+| *Gradle*
+| `gradle`
+| No
+| Java/Kotlin
+
+| *Jest*
+| `jest`
+| Yes
+| JavaScript/TypeScript
+
+| *Maven*
+| `maven`
+| No
+| Java
+
+| *Minitest*
+| `minitest`
+| Yes
+| Ruby
+
+| *NUnit Console Runner*
+| `nunit`
+| Yes
+| .NET/C#
+
+| *pytest*
+| `pytest`
+| Yes
+| Python
+
+| *Robot Framework*
+| `robot`
+| No
+| Python (Keyword-driven)
+
+| *RSpec*
+| `rspec`
+| No
+| Ruby
+|===
+
+[NOTE]
+.Framework-Specific Considerations
+====
+*"Additional Setup Required"* indicates that extra configuration steps are needed beyond basic Smart Tests CLI installation. Refer to framework-specific documentation for details.
+
+*Common additional steps include*:
+* Configuring test result output format (JUnit XML, JSON)
+* Setting up test collection mechanisms
+* Installing framework-specific Smart Tests adapters
+====
+
+'''
+
+== CI/CD Platform Requirements
+
+=== Platform Compatibility
+
+Smart Tests CLI is *CI/CD platform agnostic*. Customer can use any CI/CD tool that meets the following requirements:
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Python 3.7+*
+| Smart Tests CLI requires Python 3.7 or later installed on CI runners
+
+| *Java Runtime*
+| Java runtime environment required for Smart Tests CLI execution
+
+| *CLI Execution*
+| CI platform must allow running shell commands (`smart-tests` command)
+
+| *Environment Variables*
+| CI platform must support setting secrets/environment variables (for Smart Tests API token)
+|===
+
+=== PS Tested CI/CD Platforms 
+
+
+* CloudBees Unify
+* GitHub Actions
+* CloudBees CI
+* Jenkins
+
+[TIP]
+.Validation Steps
+====
+To verify CI platform compatibility:
+
+. Check Python version: `python --version` (must be 3.7+)
+. Check Java availability: `java -version`
+. Test CLI installation: `pip install smart-tests-cli && smart-tests --version`
+. Verify network access to CloudBees API endpoints
+
+If all commands succeed, the platform is compatible.
+====
+
+'''
+
+== Important Documentation Notes
+
+[WARNING]
+.Documentation Status & Known Issues
+====
+*⚠️ CRITICAL: Official documentation has known gaps and outdated information.*
+
+=== Known Documentation Issues:
+
+*1. Outdated CLI Command Syntax*
+
+Some documented commands are *invalid* and will fail if used:
+
+----
+# ❌ INVALID (documented but does not work)
+smart-tests subset pytest --build <BUILD_NAME> --session <SESSION_NAME> <TARGET>
+
+# ✓ VALID (correct syntax)
+smart-tests subset pytest --target 50% < tests.txt > subset.txt
+----
+
+*2. Framework-Specific Documentation*
+
+Official CloudBees documentation exists for:
+
+* *Recording Test Results*: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/record-test-results/record-test-results
+* *Predictive Test Selection (Subsetting)*: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/features/predictive-test-selection/request-and-run-a-subset-of-tests/subset-with-the-smart-tests-cli/subset-with-the-smart-tests-cli
+
+However, some framework-specific details may be incomplete or outdated.
+
+*3. Example Repository Status*
+
+*CloudBees OSS Repository* (OUT OF DATE):
+
+* https://github.com/cloudbees-oss/smart-tests-integration-examples
+* ❌ Contains outdated workflows and invalid commands
+* ⚠️ Do not use without verification
+
+*Professional Services Fork* (WORK IN PROGRESS):
+
+* https://github.com/xgalanxhi/smart-tests-integration-examples/tree/master/.github/workflows
+* 🔄 Actively being updated by PS team
+* ⚠️ Still under development, verify before customer use
+====
+
+'''
+
+== Reference Resources
+
+=== Recommended Implementation Example
+
+*Professional Services has created a complete, working end-to-end implementation*:
+
+[cols="30%,70%",options="header"]
+|===
+| Resource
+| Description
+
+| *Repository*
+| https://github.com/cloudbees-ps/issues-tracker-app
+
+| *Framework*
+| Python with pytest (140+ tests)
+
+| *Features*
+| • Complete Smart Tests integration workflow +
+• Observation mode demonstration +
+• Predictive test subsetting +
+• Multiple test suites (unit, integration, E2E) +
+• GitHub Actions workflows +
+• Demo patches for testing scenarios
+
+| *Documentation*
+| Includes comprehensive guides: +
+• `README.md` - Navigation hub +
+• `QUICKSTART.md` - Step-by-step demo +
+• `TECHNICAL_REFERENCE.md` - Deep technical dive +
+• `ISP_SMART_TESTS_DEMO.adoc` - Training document
+
+| *Use Case*
+| *Reference implementation for customer demos and POCs*
+|===
+
+[TIP]
+.Using the Reference Implementation
+====
+*For Python/pytest customers*: Use this repository as a template for implementation.
+
+*For other frameworks*: Adapt the workflow pattern (6-step integration) to your framework while consulting framework-specific documentation.
+
+*For customer demos*: Fork the repository and run through QUICKSTART.md to show live Smart Tests behavior.
+====
+
+'''
+
+== Qualification Checklist
+
+Use this checklist to determine if a customer qualifies for Smart Tests Adoption Journey:
+
+[cols="10%,50%,40%",options="header"]
+|===
+| Status
+| Requirement
+| Verification Method
+
+| ☐
+| Test suite runtime ≥15 minutes
+| Check recent CI pipeline durations
+
+| ☐
+| Tests are independent (no execution order dependencies)
+| Validate with customer; test random execution
+
+| ☐
+| Using Git for version control
+| Confirm VCS type
+
+| ☐
+| Tests organized across multiple files
+| Review test directory structure
+
+| ☐
+| Using supported test framework
+| Check against compatibility matrix
+
+| ☐
+| CI platform can run Python 3.7+ and Java
+| Test `python --version` and `java -version`
+
+| ☐
+| CI platform allows custom shell commands
+| Verify Smart Tests CLI can be executed
+
+| ☐
+| Customer has CloudBees account with PTSv2 enabled
+| Contact #team-smart-tests-se on Slack
+|===
+
+[NOTE]
+.PTSv2 Requirement
+====
+*Customer's CloudBees organization or sub-organization must have PTSv2 (Predictive Test Selection v2) enabled.*
+
+Without PTSv2, Smart Tests will run but will NOT generate predictive test subsets.
+
+*To verify or request enablement*: Send organization/sub-organization ID to #team-smart-tests-se Slack channel.
+====
+
+'''
+
