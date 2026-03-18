@@ -1,4 +1,33 @@
 = Smart Tests with Python and pytest: Concepts and Implementation
+:author: Xhesi Galanxhi
+:revdate: 2026-03-16
+:revnumber: 1.0
+:product-area: Smart Tests
+:edition-required: TBD (licensing unconfirmed; do not assume "Free tier available" without Product verification)
+:journey-slug: smart-tests/python-pytest
+:toc: left
+:toclevels: 3
+
+[cols="1,2"]
+|===
+|**Author(s)**
+|**Details**
+
+|Xhesi Galanxhi
+|Team: PS
+
+Date: 2026-03-16
+
+|**Required Check(s)**
+|**Status**
+
+|PS Official
+|Pending
+
+|ENG Approval
+|Pending
+
+|===
 
 == Overview
 
@@ -181,7 +210,7 @@ Instead of running all tests, Smart Tests uses AI to predict which tests are rel
 . *Coverage Analysis*: Which tests were/weren't selected
 
 [WARNING]
-.⚠️ COMMON MISCONCEPTIONS: Observation Mode
+.COMMON MISCONCEPTIONS: Observation Mode
 ====
 *Misconception #1*: "Observation mode is just for demo purposes."
 
@@ -259,7 +288,7 @@ To demonstrate concepts, we use a real FastAPI application with pytest:
 * Your project structure (monorepo, microservices, etc.)
 
 [TIP]
-.📝 KNOWLEDGE CHECK: Section 1
+.KNOWLEDGE CHECK: Section 1
 ====
 *Test your understanding of core concepts*:
 
@@ -410,7 +439,7 @@ Demo App Metrics:
 ----
 
 [TIP]
-.📝 KNOWLEDGE CHECK: Section 2
+.KNOWLEDGE CHECK: Section 2
 ====
 *Assess your readiness to implement Smart Tests*:
 
@@ -468,7 +497,7 @@ Demo App Metrics:
 | For change detection
 
 | *CloudBees account*
-| Free tier available
+| Edition requirement has not been confirmed. Contact your CloudBees account team for licensing details.
 
 | *PTSv2 enabled*
 | Contact CloudBees to enable (see below)
@@ -488,7 +517,7 @@ PTSv2 (Predictive Test Selection v2) must be enabled for your CloudBees organiza
 - Request PTSv2 activation
 
 *For This Demo*:
-- Contact #team-smart-tests-se on Slack
+- Contact your CloudBees Account Team
 - Provide your organization ID
 - Mention you're following the pytest demo guide
 
@@ -539,14 +568,14 @@ PTSv2 (Predictive Test Selection v2) must be enabled for your CloudBees organiza
 *Purpose*: Simulate realistic code changes that break tests, demonstrating Smart Tests' ability to predict failures.
 
 [NOTE]
-.✓ CHECKPOINT: Prerequisites Complete
+.CHECKPOINT: Prerequisites Complete
 ====
 *You should now have*:
 
-* ✓ Confirmed PTSv2 is enabled for your CloudBees organization (or contacted #team-smart-tests-se)
-* ✓ Understood general requirements (Python 3.7+, pytest, CI platform, git)
-* ✓ Reviewed demo-specific requirements (GitHub account, CloudBees account)
-* ✓ Identified which demo patches to try
+* Confirmed PTSv2 is enabled for your CloudBees organization (or contacted your CloudBees account team)
+* Understood general requirements (Python 3.7+, pytest, CI platform, git)
+* Reviewed demo-specific requirements (GitHub account, CloudBees account)
+* Identified which demo patches to try
 
 *If you're missing any of these*, review §3 before proceeding to setup.
 
@@ -898,7 +927,7 @@ Same workflow applies with:
 * Your test count (50 or 5,000 tests)
 
 [WARNING]
-.⚠️ COMMON MISCONCEPTIONS: Test Execution & Predictions
+.COMMON MISCONCEPTIONS: Test Execution & Predictions
 ====
 *Misconception #1*: "Smart Tests replaces my tests immediately."
 
@@ -1095,16 +1124,16 @@ If some missing: Continue observation mode
 ----
 
 [NOTE]
-.✓ CHECKPOINT: Hands-On Demo Complete
+.CHECKPOINT: Hands-On Demo Complete
 ====
 *You should now have*:
 
-* ✓ Run baseline tests with all tests passing
-* ✓ Viewed test session data in CloudBees dashboard (Observation Mode)
-* ✓ Created a patch branch (starting with `patch-`)
-* ✓ Applied a demo patch that introduces breaking changes
-* ✓ Run tests again and seen predictions vs actual failures
-* ✓ Analyzed prediction metrics: accuracy, time savings, subset size
+* Run baseline tests with all tests passing
+* Viewed test session data in CloudBees dashboard (Observation Mode)
+* Created a patch branch (starting with `patch-`)
+* Applied a demo patch that introduces breaking changes
+* Run tests again and seen predictions vs actual failures
+* Analyzed prediction metrics: accuracy, time savings, subset size
 
 *If you haven't completed these steps*, go back to <<section-5,§5: Hands-On Demo>>.
 
@@ -1278,7 +1307,7 @@ steps:
 *Key Insight*: The Smart Tests CLI commands are identical across all platforms. Only the CI syntax varies.
 
 [WARNING]
-.⚠️ COMMON MISCONCEPTIONS: Technical Integration
+.COMMON MISCONCEPTIONS: Technical Integration
 ====
 *Misconception #1*: "I need to modify my pytest tests to work with Smart Tests."
 
@@ -1475,7 +1504,7 @@ smart-tests verify
 ----
 
 [TIP]
-.📝 KNOWLEDGE CHECK: Section 7
+.KNOWLEDGE CHECK: Section 7
 ====
 *Test your technical integration knowledge*:
 
@@ -1499,7 +1528,7 @@ smart-tests verify
 
 4. *Which Smart Tests CLI command creates the predicted test subset?*
    - [ ] `smart-tests predict`
-   - [x] `smart-tests subset create`
+   - [x] `smart-tests subset pytest`
    - [ ] `smart-tests select`
    - [ ] `smart-tests analyze`
 
@@ -1509,15 +1538,15 @@ smart-tests verify
 ====
 
 [NOTE]
-.✓ CHECKPOINT: Technical Integration Understanding
+.CHECKPOINT: Technical Integration Understanding
 ====
 *You should now understand*:
 
-* ✓ The six-step Smart Tests CLI workflow (works on any CI platform)
-* ✓ How pytest test collection works (`pytest --collect-only`)
-* ✓ How to execute tests from a file list
-* ✓ JUnit XML configuration for Smart Tests
-* ✓ CLI installation and configuration options
+* The six-step Smart Tests CLI workflow (works on any CI platform)
+* How pytest test collection works (`pytest --collect-only`)
+* How to execute tests from a file list
+* JUnit XML configuration for Smart Tests
+* CLI installation and configuration options
 
 *Key Takeaway*: Smart Tests uses standard pytest features - no test code changes required.
 
@@ -1758,7 +1787,7 @@ Quarterly:
 
 | No predictions generated
 | PTSv2 not enabled
-| Contact #team-smart-tests-se with org ID
+| Contact your CloudBees Account Team with org ID
 
 | Low prediction accuracy
 | Insufficient training data
@@ -1793,7 +1822,7 @@ Quarterly:
 * Easy to revert with `action: revert`
 
 [TIP]
-.📝 KNOWLEDGE CHECK: Section 8
+.KNOWLEDGE CHECK: Section 8
 ====
 *Test your implementation knowledge*:
 
@@ -1973,7 +2002,7 @@ ROI:
 * Full audit trail maintained
 
 [TIP]
-.📝 KNOWLEDGE CHECK: Section 9
+.KNOWLEDGE CHECK: Section 9
 ====
 *Test your ROI calculation understanding*:
 
@@ -2167,15 +2196,15 @@ Profile 3: Regulated Industries
 
 *If You Ran the Demo*:
 
-. ✓ Review accuracy metrics in CloudBees dashboard
-. ✓ Note the time savings percentage
-. ✓ Share demo link with your team
-. ✓ Document observations and questions
+. Review accuracy metrics in CloudBees dashboard
+. Note the time savings percentage
+. Share demo link with your team
+. Document observations and questions
 
 *If You Haven't Run the Demo Yet*:
 
 . Fork demo repository: https://github.com/cloudbees-ps/issues-tracker-app
-. Request PTSv2 enablement (#team-smart-tests-se)
+. Request PTSv2 enablement (contact your CloudBees Account Team)
 . Follow Phase 1 setup (15 minutes)
 . Run baseline and patch scenarios (20 minutes)
 
@@ -2315,7 +2344,7 @@ Monthly Reports:
 
 ----
 Technical Questions:
-- #team-smart-tests-se (Slack)
+- Contact your CloudBees Account Team
 - Documentation: https://docs.cloudbees.com
 
 Account Support:
@@ -2620,5 +2649,5 @@ If you're using alternative solutions:
 
 [.text-center]
 *Demo Repository*: https://github.com/cloudbees-ps/issues-tracker-app +
-*Technical Support*: #team-smart-tests-se (Slack) +
-*PTSv2 Enablement*: Contact #team-smart-tests-se with organization ID
+*Technical Support*: Contact your CloudBees Account Team +
+*PTSv2 Enablement*: Contact your CloudBees Account Team with organization ID
