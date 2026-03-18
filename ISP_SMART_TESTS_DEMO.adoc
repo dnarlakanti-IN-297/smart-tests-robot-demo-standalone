@@ -235,7 +235,148 @@ Instead of running all tests, Smart Tests uses AI to predict which tests are rel
 *Reality*: Smart Tests operations (recording metadata, creating predictions) add negligible overhead (<5 seconds). Tests run at normal speed.
 ====
 
-=== 1.3 pytest Integration Pattern
+=== 1.3 Production Mode: Enabling Test Selection
+
+*Concept*: Once you're confident in Smart Tests' accuracy, remove the `--observation` flag to run only the predicted subset, achieving actual time savings.
+
+*From Observation to Production*:
+
+[cols="50%,50%",options="header"]
+|===
+| Observation Mode
+| Production Mode
+
+| `--observation` flag used
+| `--observation` flag removed
+
+| All tests run
+| Only predicted subset runs
+
+| Time savings are *projected*
+| Time savings are *realized*
+
+| Zero risk (all tests execute)
+| Minimal risk (high accuracy validated)
+
+| Used for validation
+| Used for daily development
+|===
+
+*How It Works*:
+
+[source,bash]
+----
+# Step 1: Record session (remove --observation flag)
+smart-tests record session \
+  --build $BUILD_ID \
+  --test-suite pytest-unit > session.txt
+
+# Step 2: Collect all tests (same as before)
+pytest --collect-only -qq tests/ > all_tests.txt
+
+# Step 3: Create predicted subset (same as before)
+smart-tests subset pytest < all_tests.txt > subset.txt
+
+# Step 4: Run ONLY the predicted subset ⭐
+pytest @subset.txt \
+  -o junit_family=legacy \
+  --junit-xml=results.xml
+
+# Step 5: Record results (same as before)
+smart-tests record tests pytest results.xml
+----
+
+*Key Difference*:
+
+In production mode, pytest executes **only the tests listed in `subset.txt`** (the predicted subset), not all tests. This is where time savings are achieved.
+
+*Example - Demo App Scenario*:
+
+----
+Observation Mode (validation phase):
+  All tests collected: 140 tests
+  Predicted subset: 70 tests (50%)
+  Tests executed: ALL 140 tests ⏱️ 3 minutes
+  Result: Validated that predicted 70 would catch all failures
+
+Production Mode (after validation):
+  All tests collected: 140 tests
+  Predicted subset: 70 tests (50%)
+  Tests executed: ONLY 70 tests ⏱️ 1.5 minutes
+  Result: 50% time savings realized ✅
+----
+
+*Your Application*:
+
+Same pattern applies with your numbers:
+
+----
+Example 1: Large Suite
+  Full suite: 500 tests @ 30 minutes
+  Predicted subset: 200 tests (40%)
+  Production mode execution: ~12 minutes
+  Savings: 18 minutes (60%) ✅
+
+Example 2: Very Large Suite
+  Full suite: 5,000 tests @ 2 hours
+  Predicted subset: 2,000 tests (40%)
+  Production mode execution: ~48 minutes
+  Savings: 72 minutes (60%) ✅
+----
+
+*When to Transition to Production Mode*:
+
+[cols="40%,60%",options="header"]
+|===
+| Criterion
+| Recommendation
+
+| *Accuracy*
+| Consistently >85-95% over 1-2 weeks
+
+| *Test Sessions*
+| 50-100+ sessions in observation mode
+
+| *False Negatives*
+| Minimal or zero missed failures
+
+| *Team Confidence*
+| Developers and stakeholders trust predictions
+
+| *Rollout Strategy*
+| Start with non-critical branches, expand gradually
+|===
+
+[TIP]
+.Gradual Production Rollout
+====
+*Best Practice*: Don't switch everything to production mode at once.
+
+*Recommended Approach*:
+
+. *Week 1-2*: All branches in observation mode
+. *Week 3*: Enable production mode for feature branches only
+. *Week 4*: Enable for pull request validation builds
+. *Week 5*: Enable for develop/staging branches
+. *Week 6+*: Enable for main/production branches
+
+This gradual rollout minimizes risk while building team confidence.
+====
+
+[WARNING]
+.Fallback Options
+====
+*Always maintain the ability to run full test suite*:
+
+* Keep full suite workflow available for critical changes
+* Add manual trigger to bypass subsetting for release builds
+* Monitor accuracy continuously and revert to observation if it degrades
+* Document process for disabling predictions in emergencies
+
+*Example*: Add a workflow input parameter `skip_smart_tests: false` that runs full suite when set to `true`.
+====
+
+=== 1.4 pytest Integration Pattern
 
 *Why pytest*:
 
@@ -1148,7 +1289,7 @@ If some missing: Continue observation mode
 
 '''
 
-== 6. Phase 3: Advanced Exploration
+== 6. Advanced Exploration
 
 === 6.1 Multiple Patch Scenarios
 
@@ -1985,21 +2126,6 @@ ROI:
 * *Better Developer Experience*: Less waiting for builds
 * *Cost Reduction*: Lower CI/CD infrastructure costs
 
-=== 9.3 Risk Mitigation
-
-*Observation Mode Safety*:
-
-* All tests run normally
-* No risk of missing failures
-* Build confidence before production use
-* Continuous validation of predictions
-
-*Fallback Options*:
-
-* Instant revert to full test suite
-* Override predictions for critical changes
-* Manual test selection available
-* Full audit trail maintained
 
 [TIP]
 .KNOWLEDGE CHECK: Section 9
@@ -2058,43 +2184,6 @@ ROI:
 . Document expected test failures
 . Add to workflow dropdown options
 
-=== 10.2 Multi-Language Support
-
-*Smart Tests Support*:
-
-* Python/pytest (this demo)
-* Java/JUnit
-* JavaScript/Jest
-* .NET/xUnit
-* Go/testing
-* Ruby/RSpec
-
-*Adaptation Pattern*:
-
-. Adjust test collection command
-. Configure JUnit XML output
-. Update Smart Tests CLI commands
-. Modify workflow accordingly
-
-=== 10.3 Enterprise Integration
-
-*Scaling Considerations*:
-
-* Multiple repositories
-* Shared test infrastructure
-* Team-specific configurations
-* Compliance and audit requirements
-* Cost allocation and tracking
-
-*CloudBees Unify Benefits*:
-
-* Single login across features
-* Unified RBAC and permissions
-* Centralized audit trails
-* Consistent environment management
-* Integration with CI/CD orchestration
-
-'''
 
 == Summary: Key Concepts and Takeaways
 
@@ -2167,176 +2256,7 @@ ROI:
 . *Metric-Driven Decisions*: Use actual data, not assumptions
 . *Gradual Rollout*: Start small, expand with confidence
 
-=== Common Patterns Across Industries
 
-*Successful Customer Profiles*:
-
-----
-Profile 1: Large Monolith
-- 5,000+ tests, 30+ minute runtime
-- Smart Tests: 70% reduction, 20 minute savings
-- ROI: $500K+/year
-
-Profile 2: Microservices
-- 500-1000 tests per service, 10+ minutes each
-- Smart Tests: 50% reduction per service
-- ROI: Scales across all services
-
-Profile 3: Regulated Industries
-- Compliance requires extensive testing
-- Observation mode proves no regressions missed
-- Faster releases without sacrificing safety
-----
-
-'''
-
-== Next Steps
-
-=== Immediate Actions (This Week)
-
-*If You Ran the Demo*:
-
-. Review accuracy metrics in CloudBees dashboard
-. Note the time savings percentage
-. Share demo link with your team
-. Document observations and questions
-
-*If You Haven't Run the Demo Yet*:
-
-. Fork demo repository: https://github.com/cloudbees-ps/issues-tracker-app
-. Request PTSv2 enablement (contact your CloudBees Account Team)
-. Follow Phase 1 setup (15 minutes)
-. Run baseline and patch scenarios (20 minutes)
-
-=== Planning Phase (Weeks 1-2)
-
-*Assessment*:
-
-----
-□ Inventory your pytest test suites
-  - How many tests per suite?
-  - Current execution times?
-  - CI platform and configuration?
-
-□ Calculate baseline metrics
-  - Tests per day
-  - Developer waiting time
-  - CI infrastructure costs
-
-□ Identify pilot project
-  - Non-critical application
-  - Active development team
-  - Representative test patterns
-
-□ Stakeholder alignment
-  - Development team buy-in
-  - Management approval
-  - Budget/resource allocation
-----
-
-*Technical Preparation*:
-
-----
-□ Verify Python 3.7+ on CI agents
-□ Confirm pytest JUnit XML works
-□ Test Smart Tests CLI installation
-□ Validate CloudBees connectivity
-□ Document current CI workflow
-----
-
-=== Implementation Phase (Weeks 3-6)
-
-*Week 3: Enable Observation Mode*
-
-----
-□ Install Smart Tests CLI in CI pipeline
-□ Add six-step integration workflow
-□ Deploy to pilot project only
-□ Verify data appears in CloudBees
-□ Fix any integration issues
-----
-
-*Week 4: Data Collection*
-
-----
-□ Run observation mode on all commits
-□ Collect 50+ test sessions
-□ Monitor for errors or issues
-□ Begin reviewing accuracy metrics
-□ Document any challenges
-----
-
-*Week 5: Analysis*
-
-----
-□ Calculate actual accuracy (target >90%)
-□ Measure time savings potential
-□ Review false negative patterns
-□ Assess production readiness
-□ Prepare stakeholder report
-----
-
-*Week 6: Decision*
-
-----
-If Metrics Good:
-  □ Enable predictions for pilot
-  □ Monitor closely for 1 week
-  □ Validate savings realized
-  □ Plan broader rollout
-
-If Metrics Need Improvement:
-  □ Continue observation mode
-  □ Investigate accuracy issues
-  □ Adjust target percentages
-  □ Collect more data
-----
-
-=== Scaling Phase (Months 2-3)
-
-*Gradual Expansion*:
-
-----
-Month 2:
-□ Add 3-5 more projects
-□ Monitor accuracy across projects
-□ Document best practices
-□ Train additional teams
-
-Month 3:
-□ Enable for 50% of projects
-□ Establish ongoing monitoring
-□ Calculate realized ROI
-□ Plan full deployment
-----
-
-=== Production Operations (Ongoing)
-
-*Monitoring Dashboard*:
-
-----
-Weekly Reviews:
-- Accuracy trends per project
-- Time savings realization
-- False negative incidents
-- Team feedback
-
-Monthly Reports:
-- ROI calculation
-- Adoption metrics
-- Optimization opportunities
-- Executive summary
-----
-
-*Continuous Improvement*:
-
-----
-□ Quarterly accuracy reviews
-□ Adjust target percentages based on data
-□ Expand to additional test types
-□ Share learnings across teams
-□ Update documentation
-----
 
 === Getting Help
 
@@ -2358,14 +2278,7 @@ Demo Repository:
 - TECHNICAL_REFERENCE.md: Deep dive documentation
 ----
 
-*Community*:
 
-----
-□ Share your success story
-□ Contribute improvements to demo
-□ Participate in user groups
-□ Provide feedback to CloudBees
-----
 
 '''
 
@@ -2414,35 +2327,7 @@ Demo Repository:
 □ Document your specific integration
 ----
 
-=== pytest and Testing Resources
 
-*pytest Documentation*:
-
-* Test Collection: https://docs.pytest.org/en/stable/how-to/collect.html
-* JUnit XML: https://docs.pytest.org/en/stable/how-to/output.html#creating-junitxml-format-files
-* Configuration: https://docs.pytest.org/en/stable/reference/customize.html
-* Plugins: https://docs.pytest.org/en/stable/reference/plugin_list.html
-
-*Common pytest Patterns*:
-
-----
-# Test organization
-tests/unit/
-tests/integration/
-conftest.py (fixtures)
-
-# Markers
-@pytest.mark.unit
-@pytest.mark.slow
-@pytest.mark.smoke
-
-# Plugins
-pytest-cov (coverage)
-pytest-xdist (parallel)
-pytest-html (reporting)
-----
-
-'''
 
 == Appendix: Adapting to Your Application
 
@@ -2530,35 +2415,8 @@ tests/ (organized by pytest markers)
 | `script: command`
 |===
 
-*Smart Tests CLI Commands*: Identical across all platforms
 
-=== A.4 Scale Considerations
-
-*Demo Scale*: 140 tests, 3 minutes
-
-*Your Scale May Vary*:
-
-[cols="30%,70%",options="header"]
-|===
-| Scale
-| Smart Tests Considerations
-
-| *Small (50-500 tests)*
-| Works great, fast baseline collection
-
-| *Medium (500-2000 tests)*
-| Ideal sweet spot, significant savings
-
-| *Large (2000-10000 tests)*
-| Maximum value, may split into multiple sessions
-
-| *Very Large (10000+ tests)*
-| Consider test suite organization, multiple sessions recommended
-|===
-
-*No Upper Limit*: Smart Tests scales to any test suite size.
-
-=== A.5 Customizing Test Selection
+=== A.4 Customizing Test Selection
 
 *Demo Uses*: 50% target
 
@@ -2570,82 +2428,7 @@ smart-tests subset pytest --target 30%
 
 # More conservative (less savings, higher accuracy)
 smart-tests subset pytest --target 70%
-
-# Let Smart Tests decide
-smart-tests subset pytest (no target specified)
 ----
-
-*Recommendation*: Start with 50%, adjust based on your accuracy data.
-
-=== A.6 Multiple Test Suites
-
-*Demo Has*: 3 suites (unit, integration, e2e)
-
-*You Might Have*:
-
-----
-Option 1: By type
-- pytest-unit
-- pytest-integration
-- pytest-smoke
-- pytest-performance
-
-Option 2: By feature
-- pytest-auth
-- pytest-billing
-- pytest-reporting
-
-Option 3: By speed
-- pytest-fast
-- pytest-slow
-
-Option 4: Combination
-- pytest-unit-auth
-- pytest-unit-billing
-- pytest-integration-api
-----
-
-*Best Practice*: Create sessions that match how you think about your tests.
-
-=== A.7 Existing pytest Features Compatibility
-
-*Smart Tests Works With*:
-
-----
-✓ pytest.ini / pyproject.toml configuration
-✓ pytest markers (-m unit, -m smoke)
-✓ pytest fixtures (all types)
-✓ pytest parametrize
-✓ pytest-xdist (parallel execution)
-✓ pytest-cov (coverage reporting)
-✓ pytest-html (HTML reports)
-✓ pytest-timeout (test timeouts)
-✓ pytest-asyncio (async tests)
-✓ Any pytest plugin
-----
-
-*Nothing To Change*: Your existing pytest setup continues working.
-
-=== A.8 Migration Path
-
-*From Other Test Frameworks*:
-
-If you're not using pytest yet:
-
-. Smart Tests supports multiple test frameworks (JUnit, Jest, etc.)
-. If considering pytest migration, Smart Tests works immediately after
-. No need to wait for Smart Tests - works with existing tests
-
-*From Other Predictive Test Tools*:
-
-If you're using alternative solutions:
-
-. Run Smart Tests in observation mode alongside
-. Compare accuracy and experience
-. Migrate when confident in Smart Tests
-. CloudBees team can assist with migration
-
-'''
 
 [.text-center]
 *Demo Repository*: https://github.com/cloudbees-ps/issues-tracker-app +
