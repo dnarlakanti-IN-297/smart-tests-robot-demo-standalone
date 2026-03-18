@@ -64,7 +64,8 @@ Phase 1: UNDERSTAND THE CONCEPTS
    └─ §2: Applying to Your Application
         ├─ Is this a good fit for you?
         ├─ How to map demo patterns to your tests
-        └─ Estimating your ROI
+        ├─ Estimating your ROI
+        └─ Formal qualification criteria
 
 Phase 2: PREREQUISITES & SETUP
    ├─ §3: Prerequisites and Requirements
@@ -611,6 +612,244 @@ Demo App Metrics:
    - [x] Your current test suite cost (time × frequency × developer cost)
    - [ ] How many tests to delete
    - [ ] New hardware requirements
+====
+
+=== 2.4 Formal Qualification Criteria
+
+Beyond general assessment, your project must meet ALL of the following requirements to qualify for Smart Tests adoption:
+
+==== 1. Long-Running Test Suite
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Minimum Runtime*
+| Full test suite must take *15+ minutes* to execute
+
+| *Rationale*
+| Smart Tests provides the most value when test execution time is significant. Shorter test suites (<15 minutes) may not justify the implementation effort.
+
+| *How to Measure*
+| Review recent CI/CD pipeline execution times for test stages
+|===
+
+[TIP]
+.Ideal Candidates
+====
+* Test suites taking 30-60+ minutes: High value opportunity
+* Test suites taking 15-30 minutes: Good candidate
+* Test suites taking <15 minutes: Consider future growth or wait until suite grows
+====
+
+==== 2. Independent Tests
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Test Independence*
+| Tests must be *independently executable* without dependencies on test execution order
+
+| *Rationale*
+| Smart Tests creates subsets of tests to run. If tests depend on other tests running first (shared state, execution order), subsetting will cause failures.
+
+| *How to Validate*
+| Tests can be run in isolation or random order without affecting results
+|===
+
+[WARNING]
+.Common Anti-Patterns That Disqualify
+====
+* Tests that rely on shared global state modified by other tests
+* Tests that must run in specific order (Test B depends on Test A's side effects)
+* Test suites using `pytest.mark.dependency` or similar ordering mechanisms
+* Setup/teardown logic that assumes all tests run together
+
+*If these patterns exist*, you must refactor tests before Smart Tests adoption.
+====
+
+==== 3. Git Version Control
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Version Control*
+| Must be using *Git* for source control
+
+| *Rationale*
+| Smart Tests analyzes code changes via `git diff` to predict affected tests. Git is the only supported VCS.
+
+| *Supported*
+| GitHub, GitLab, Bitbucket, Azure Repos, self-hosted Git servers
+
+| *Not Supported*
+| Subversion (SVN), Mercurial, Perforce, TFS (non-Git)
+|===
+
+==== 4. Test File Organization
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *File Structure*
+| Tests must be organized across *multiple test files*, not a single monolithic file
+
+| *Rationale*
+| Smart Tests maps code changes to test files. A single file containing all tests prevents effective subsetting.
+
+| *Good Structure*
+| Tests organized by feature, module, layer, or functional area across multiple files
+
+| *Disqualifying Structure*
+| Single `test_all.py` file containing hundreds/thousands of tests
+|===
+
+[TIP]
+.Acceptable pytest Organization Patterns
+====
+----
+✓ By feature:
+  tests/auth/test_login.py
+  tests/auth/test_permissions.py
+  tests/billing/test_invoices.py
+
+✓ By layer:
+  tests/unit/test_services.py
+  tests/integration/test_api.py
+  tests/e2e/test_workflows.py
+
+✓ By module:
+  tests/test_user_service.py
+  tests/test_project_service.py
+  tests/test_issue_service.py
+
+✗ Disqualifying:
+  tests/test_all.py (5000 tests in one file)
+----
+====
+
+==== 5. pytest Framework Requirement
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Test Framework*
+| Must be using *pytest* for testing
+
+| *Version*
+| Any pytest version compatible with Python 3.7+
+
+| *Plugins*
+| All standard pytest plugins supported (pytest-cov, pytest-xdist, pytest-django, etc.)
+
+| *Why pytest Only (for this guide)*
+| This adoption journey is specifically designed for pytest-based applications. Smart Tests supports other frameworks, but integration patterns differ.
+|===
+
+==== 6. CI/CD Platform Requirements
+
+Smart Tests CLI is *platform agnostic*. Your CI/CD platform must meet:
+
+[cols="30%,70%",options="header"]
+|===
+| Requirement
+| Details
+
+| *Python 3.7+*
+| Smart Tests CLI requires Python 3.7 or later on CI runners
+
+| *Java Runtime*
+| Java runtime environment required for Smart Tests CLI execution
+
+| *Shell Command Execution*
+| CI platform must allow running `smart-tests` CLI commands
+
+| *Environment Variables*
+| Must support setting secrets/environment variables (for Smart Tests API token)
+|===
+
+*PS-Tested CI/CD Platforms:*
+
+* CloudBees Unify
+* GitHub Actions
+* CloudBees CI
+* Jenkins
+
+[TIP]
+.Validation Steps for Your CI Platform
+====
+To verify your CI platform compatibility:
+
+. Check Python version: `python --version` (must be 3.7+)
+. Check Java availability: `java -version`
+. Test CLI installation: `pip install smart-tests-cli && smart-tests --version`
+. Verify network access to CloudBees API endpoints
+
+If all commands succeed, the platform is compatible.
+====
+
+==== Qualification Checklist
+
+Use this checklist to confirm your project qualifies:
+
+[cols="10%,60%,30%",options="header"]
+|===
+| Status
+| Requirement
+| Your Project
+
+| ☐
+| Test suite runtime ≥15 minutes
+| _____ minutes
+
+| ☐
+| Tests are independent (no execution order dependencies)
+| Verified: Yes / No
+
+| ☐
+| Using Git for version control
+| Git / Other: _____
+
+| ☐
+| Tests organized across multiple files
+| # of test files: _____
+
+| ☐
+| Using pytest framework
+| pytest version: _____
+
+| ☐
+| CI platform supports Python 3.7+ and Java
+| Platform: _____
+
+| ☐
+| CI platform allows custom shell commands
+| Verified: Yes / No
+|===
+
+[NOTE]
+.If Your Project Does Not Qualify
+====
+*Test Suite Too Short (<15 minutes)*: Revisit when test suite grows, or identify other high-value use cases.
+
+*Tests Not Independent*: Refactor tests to remove execution order dependencies before adoption. This is a prerequisite for Smart Tests.
+
+*Not Using Git*: Smart Tests requires Git. Migration to Git-based VCS needed.
+
+*Monolithic Test File*: Reorganize tests into multiple files by feature/module/layer before adoption.
+
+*Using Different Framework*: This guide is pytest-specific. Contact CloudBees for guidance on other frameworks.
+
+*CI Platform Limitations*: Ensure CI platform meets Python 3.7+ and Java requirements. Most modern platforms do.
 ====
 
 [[section-3]]
