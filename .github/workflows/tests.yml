@@ -194,8 +194,8 @@ jobs:
 
     - name: Start application and run E2E tests
       run: |
-        # Start application in background
-        python run.py &
+        # Start application in background (with DEBUG=False to disable reload)
+        DEBUG=False python run.py &
         APP_PID=$!
         echo "Started application with PID $APP_PID"
 
