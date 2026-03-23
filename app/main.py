@@ -1,10 +1,15 @@
 """Main FastAPI application"""
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.routes import api_router, web_router
+
+# Get the absolute path to the app directory
+APP_DIR = Path(__file__).parent
 
 # Create FastAPI app
 app = FastAPI(
@@ -17,7 +22,7 @@ app = FastAPI(
 )
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
 # Include routers
 app.include_router(api_router)
