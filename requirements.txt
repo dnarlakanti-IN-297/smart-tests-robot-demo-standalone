@@ -13,7 +13,7 @@ bcrypt>=5.0.0
 python-dotenv>=1.0.1
 
 # Templates
-jinja2>=3.1.4
+jinja2==3.1.4
 
 # Validation
 pydantic>=2.10.0
