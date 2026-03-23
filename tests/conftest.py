@@ -1,8 +1,5 @@
 """Shared pytest fixtures"""
 
-import os
-import time
-
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -20,15 +17,6 @@ from app.models.user import User, UserRole
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-@pytest.fixture(autouse=True)
-def ci_demo_delay():
-    """Add artificial delay for CI demo visibility"""
-    if os.getenv('CI') or os.getenv('GITHUB_ACTIONS'):
-        # Add 2 second delay per test for better demo visibility
-        time.sleep(2)
-    yield
 
 
 @pytest.fixture(scope="function")
