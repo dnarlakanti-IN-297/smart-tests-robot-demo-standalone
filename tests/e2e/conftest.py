@@ -1,19 +1,7 @@
 """Playwright test configuration"""
 
-import os
-import time
-
 import pytest
 from playwright.sync_api import Page
-
-
-@pytest.fixture(autouse=True)
-def ci_demo_delay():
-    """Add artificial delay for CI demo visibility"""
-    if os.getenv('CI') or os.getenv('GITHUB_ACTIONS'):
-        # Add 0 second delay per E2E test (longer than unit/integration)
-        time.sleep(0)
-    yield
 
 
 @pytest.fixture(scope="session")
