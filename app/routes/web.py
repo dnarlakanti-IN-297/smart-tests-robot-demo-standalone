@@ -1,11 +1,20 @@
 """Web routes for HTML templates"""
 
+import os
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from jinja2 import Environment, FileSystemLoader
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+
+# Disable template caching in CI to work around Python 3.13.12 Jinja2 cache bug
+if os.getenv('CI') or os.getenv('GITHUB_ACTIONS'):
+    env = Environment(loader=FileSystemLoader("app/templates"), cache_size=0)
+    templates = Jinja2Templates(env=env)
+else:
+    templates = Jinja2Templates(directory="app/templates")
 
 
 @router.get("/", response_class=HTMLResponse)
