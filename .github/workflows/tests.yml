@@ -182,16 +182,6 @@ jobs:
         python -m app.db.init_db
         python -m app.db.seed_data
 
-    - name: Start application
-      run: |
-        python run.py &
-        sleep 5
-        # Wait for application to be ready
-        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || \
-        timeout 30 bash -c 'until curl -f http://localhost:8000/ 2>/dev/null; do sleep 1; done'
-      env:
-        DATABASE_URL: sqlite:///./issue_tracker.db
-
     - name: Generate test list
       run: |
         pytest --collect-only -qq tests/e2e/ > test_list.txt
@@ -202,13 +192,30 @@ jobs:
         cat test_list.txt | smart-tests subset pytest --session @session.txt --target 50% > smart-tests-subset.txt
         cat smart-tests-subset.txt
 
-    - name: Run E2E tests (Smart Tests subset)
+    - name: Start application and run E2E tests
       run: |
+        # Start application in background
+        python run.py &
+        APP_PID=$!
+        echo "Started application with PID $APP_PID"
+
+        # Wait for application to be ready
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          exit 1
+        }
+        echo "Application is ready!"
+
+        # Run tests
         if [ -s smart-tests-subset.txt ]; then
           pytest -v -o junit_family=legacy --video=retain-on-failure --screenshot=only-on-failure --junit-xml=test-results/junit.xml @smart-tests-subset.txt
         else
           echo "No tests to run in subset"
         fi
+
+        # Cleanup
+        kill $APP_PID 2>/dev/null || true
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
 
