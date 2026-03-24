@@ -139,16 +139,26 @@ The customer must be using one of the officially supported test frameworks liste
 
 === Framework Compatibility Matrix
 
-[cols="30%,25%,25%,20%",options="header"]
+[cols="30%,20%,20%,30%",options="header"]
 |===
 | Test Framework
 | `test_runner` Value
 | Additional Setup Required
 | Language/Ecosystem
 
+| *Android CTS*
+| N/A
+| Zero Input Only
+| Android
+
+| *Android Debug Bridge (ADB)*
+| `adb`
+| No
+| Android
+
 | *Ant*
 | `ant`
-| No
+| Yes
 | Java
 
 | *Bazel*
@@ -158,17 +168,17 @@ The customer must be using one of the officially supported test frameworks liste
 
 | *Behave*
 | `behave`
-| Yes
+| No
 | Python (BDD)
 
 | *CTest*
 | `ctest`
-| Yes
+| No
 | C/C++ (CMake)
 
 | *Cucumber*
 | `cucumber`
-| Yes
+| No
 | Multi-language (BDD)
 
 | *Cypress*
@@ -176,14 +186,24 @@ The customer must be using one of the officially supported test frameworks liste
 | No
 | JavaScript (E2E)
 
+| *dotnet test*
+| N/A
+| Zero Input Only
+| .NET/C#
+
+| *Flutter*
+| `flutter`
+| No
+| Dart
+
 | *GoogleTest*
 | `googletest`
-| Yes
+| No
 | C++
 
 | *Go Test*
 | `go-test`
-| Yes
+| No
 | Go
 
 | *Gradle*
@@ -191,9 +211,19 @@ The customer must be using one of the officially supported test frameworks liste
 | No
 | Java/Kotlin
 
+| *Gradle + TestNG*
+| `gradle`
+| Yes
+| Java/Kotlin
+
 | *Jest*
 | `jest`
-| Yes
+| No
+| JavaScript/TypeScript
+
+| *Karma*
+| `karma`
+| No
 | JavaScript/TypeScript
 
 | *Maven*
@@ -201,19 +231,34 @@ The customer must be using one of the officially supported test frameworks liste
 | No
 | Java
 
+| *Maven + TestNG*
+| `maven`
+| Yes
+| Java
+
 | *Minitest*
 | `minitest`
-| Yes
+| No
 | Ruby
 
 | *NUnit Console Runner*
 | `nunit`
-| Yes
+| No
 | .NET/C#
+
+| *Playwright*
+| `playwright`
+| No
+| JavaScript/TypeScript
+
+| *prove (Perl)*
+| `prove`
+| No
+| Perl
 
 | *pytest*
 | `pytest`
-| Yes
+| No
 | Python
 
 | *Robot Framework*
@@ -225,17 +270,30 @@ The customer must be using one of the officially supported test frameworks liste
 | `rspec`
 | No
 | Ruby
+
+| *Vitest*
+| `vitest`
+| No
+| JavaScript/TypeScript
+
+| *XCTest*
+| N/A
+| Zero Input Only
+| Swift/Objective-C (iOS)
 |===
 
 [NOTE]
 .Framework-Specific Considerations
 ====
-*"Additional Setup Required"* indicates that extra configuration steps are needed beyond basic Smart Tests CLI installation. Refer to framework-specific documentation for details.
+*"Additional Setup Required: Yes"* indicates that extra dependencies or configuration files are needed beyond command-line arguments:
 
-*Common additional steps include*:
-* Configuring test result output format (JUnit XML, JSON)
-* Setting up test collection mechanisms
-* Installing framework-specific Smart Tests adapters
+* *Gradle + TestNG*: Requires `launchable-testng` dependency in `build.gradle`
+* *Maven + TestNG*: Requires `launchable-testng` dependency in `pom.xml`
+* *Ant*: Requires modifications to `build.xml` file
+
+*"Additional Setup Required: No"* means integration uses only command-line arguments and piped commands.
+
+*"Zero Input Only"* frameworks (Android CTS, dotnet test, XCTest) use an alternative subsetting method that doesn't require test lists. See CloudBees documentation for Zero Input Subsetting.
 ====
 
 '''
