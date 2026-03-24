@@ -36,7 +36,7 @@ jobs:
     env:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
       # Use observation mode unless manually triggered with production mode
-      OBSERVATION_FLAG: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'production') && '' || '--observation' }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
       # Use custom target if provided via workflow_dispatch, otherwise default to --target 50%
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 50%' }}
 
@@ -153,7 +153,7 @@ jobs:
     env:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
       # Use observation mode unless manually triggered with production mode
-      OBSERVATION_FLAG: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'production') && '' || '--observation' }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
       # Use custom target if provided via workflow_dispatch, otherwise default to --target 50%
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 50%' }}
 
