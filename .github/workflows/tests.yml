@@ -14,6 +14,15 @@ on:
       - 'requirements.txt'
       - 'requirements-dev.txt'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Smart Tests mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
 
 jobs:
   unit-and-integration-tests:
@@ -21,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      # Use observation mode unless manually triggered with production mode
+      OBSERVATION_FLAG: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'production') && '' || '--observation' }}
 
     steps:
     - name: Checkout code
@@ -71,7 +82,7 @@ jobs:
 
     - name: Create Smart Tests subset for unit tests
       run: |
-        cat test_list_unit.txt | smart-tests subset pytest --session @session-unit.txt --target 50% > smart-tests-subset-unit.txt
+        cat test_list_unit.txt | smart-tests subset pytest --session @session-unit.txt $OBSERVATION_FLAG --target 50% > smart-tests-subset-unit.txt
         cat smart-tests-subset-unit.txt
 
     - name: Run unit tests (Smart Tests subset)
@@ -103,7 +114,7 @@ jobs:
     - name: Create Smart Tests subset for integration tests
       if: always()
       run: |
-        cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt --target 50% > smart-tests-subset-integration.txt
+        cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt $OBSERVATION_FLAG --target 50% > smart-tests-subset-integration.txt
         cat smart-tests-subset-integration.txt
 
     - name: Run integration tests (Smart Tests subset)
@@ -134,6 +145,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      # Use observation mode unless manually triggered with production mode
+      OBSERVATION_FLAG: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'production') && '' || '--observation' }}
 
     steps:
     - name: Checkout code
@@ -189,7 +202,7 @@ jobs:
 
     - name: Create Smart Tests subset
       run: |
-        cat test_list.txt | smart-tests subset pytest --session @session.txt --target 50% > smart-tests-subset.txt
+        cat test_list.txt | smart-tests subset pytest --session @session.txt $OBSERVATION_FLAG --target 50% > smart-tests-subset.txt
         cat smart-tests-subset.txt
 
     - name: Start application and run E2E tests
