@@ -79,7 +79,7 @@ jobs:
 
     - name: Record session for unit tests
       run: |
-        smart-tests record session --build ${{ github.run_id }} --observation --test-suite pytest-unit > session-unit.txt
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite pytest-unit > session-unit.txt
         cat session-unit.txt
 
     - name: Generate unit test list
@@ -89,7 +89,7 @@ jobs:
 
     - name: Create Smart Tests subset for unit tests
       run: |
-        cat test_list_unit.txt | smart-tests subset pytest --session @session-unit.txt $OBSERVATION_FLAG $TARGET_FLAG > smart-tests-subset-unit.txt
+        cat test_list_unit.txt | smart-tests subset pytest --session @session-unit.txt $TARGET_FLAG > smart-tests-subset-unit.txt
         cat smart-tests-subset-unit.txt
 
     - name: Run unit tests (Smart Tests subset)
@@ -109,7 +109,7 @@ jobs:
     - name: Record session for integration tests
       if: always()
       run: |
-        smart-tests record session --build ${{ github.run_id }} --observation --test-suite pytest-integration > session-integration.txt
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite pytest-integration > session-integration.txt
         cat session-integration.txt
 
     - name: Generate integration test list
@@ -121,7 +121,7 @@ jobs:
     - name: Create Smart Tests subset for integration tests
       if: always()
       run: |
-        cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt $OBSERVATION_FLAG $TARGET_FLAG > smart-tests-subset-integration.txt
+        cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt $TARGET_FLAG > smart-tests-subset-integration.txt
         cat smart-tests-subset-integration.txt
 
     - name: Run integration tests (Smart Tests subset)
@@ -196,7 +196,7 @@ jobs:
 
     - name: Record session with Smart Tests
       run: |
-        smart-tests record session --build ${{ github.run_id }} --observation --test-suite pytest-e2e > session.txt
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite pytest-e2e > session.txt
         cat session.txt
 
     - name: Initialize database
@@ -211,7 +211,7 @@ jobs:
 
     - name: Create Smart Tests subset
       run: |
-        cat test_list.txt | smart-tests subset pytest --session @session.txt $OBSERVATION_FLAG $TARGET_FLAG > smart-tests-subset.txt
+        cat test_list.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt
         cat smart-tests-subset.txt
 
     - name: Start application and run E2E tests
