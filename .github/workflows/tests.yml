@@ -23,6 +23,11 @@ on:
         options:
           - observation
           - production
+      target:
+        description: 'Optimization target (e.g., --target 50%)'
+        required: false
+        default: '--target 50%'
+        type: string
 
 jobs:
   unit-and-integration-tests:
@@ -32,6 +37,8 @@ jobs:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
       # Use observation mode unless manually triggered with production mode
       OBSERVATION_FLAG: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'production') && '' || '--observation' }}
+      # Use custom target if provided via workflow_dispatch, otherwise default to --target 50%
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 50%' }}
 
     steps:
     - name: Checkout code
@@ -82,7 +89,7 @@ jobs:
 
     - name: Create Smart Tests subset for unit tests
       run: |
-        cat test_list_unit.txt | smart-tests subset pytest --session @session-unit.txt $OBSERVATION_FLAG --target 50% > smart-tests-subset-unit.txt
+        cat test_list_unit.txt | smart-tests subset pytest --session @session-unit.txt $OBSERVATION_FLAG $TARGET_FLAG > smart-tests-subset-unit.txt
         cat smart-tests-subset-unit.txt
 
     - name: Run unit tests (Smart Tests subset)
@@ -114,7 +121,7 @@ jobs:
     - name: Create Smart Tests subset for integration tests
       if: always()
       run: |
-        cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt $OBSERVATION_FLAG --target 50% > smart-tests-subset-integration.txt
+        cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt $OBSERVATION_FLAG $TARGET_FLAG > smart-tests-subset-integration.txt
         cat smart-tests-subset-integration.txt
 
     - name: Run integration tests (Smart Tests subset)
@@ -147,6 +154,8 @@ jobs:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
       # Use observation mode unless manually triggered with production mode
       OBSERVATION_FLAG: ${{ (github.event_name == 'workflow_dispatch' && inputs.mode == 'production') && '' || '--observation' }}
+      # Use custom target if provided via workflow_dispatch, otherwise default to --target 50%
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 50%' }}
 
     steps:
     - name: Checkout code
@@ -202,7 +211,7 @@ jobs:
 
     - name: Create Smart Tests subset
       run: |
-        cat test_list.txt | smart-tests subset pytest --session @session.txt $OBSERVATION_FLAG --target 50% > smart-tests-subset.txt
+        cat test_list.txt | smart-tests subset pytest --session @session.txt $OBSERVATION_FLAG $TARGET_FLAG > smart-tests-subset.txt
         cat smart-tests-subset.txt
 
     - name: Start application and run E2E tests
