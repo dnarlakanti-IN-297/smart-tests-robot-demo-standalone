@@ -1,25 +1,25 @@
 # Web Framework
 fastapi==0.115.5
 starlette==0.41.3
-uvicorn[standard]>=0.30.0
-python-multipart>=0.0.17
+uvicorn[standard]==0.41.0
+python-multipart==0.0.22
 
 # Database
-sqlalchemy>=2.0.36
-alembic>=1.14.0
+sqlalchemy==2.0.48
+alembic==1.18.4
 
 # Authentication
-python-jose[cryptography]>=3.3.0
-bcrypt>=5.0.0
-python-dotenv>=1.0.1
+python-jose[cryptography]==3.5.0
+bcrypt==5.0.0
+python-dotenv==1.2.2
 
 # Templates
 jinja2==3.1.4
 
 # Validation
-pydantic>=2.10.0
-pydantic-settings>=2.7.0
-email-validator>=2.2.0
+pydantic==2.12.5
+pydantic-settings==2.13.1
+email-validator==2.3.0
 
 # Date handling
-python-dateutil>=2.9.0
+python-dateutil==2.9.0.post0
