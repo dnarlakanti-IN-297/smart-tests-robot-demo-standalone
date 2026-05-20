@@ -1,0 +1,10 @@
+# Robot Framework Core
+robotframework==7.0
+robotframework-requests==0.9.7
+robotframework-jsonlibrary==0.5
+
+# Robot Framework reporting
+robotframework-pabot==2.18.0  # Parallel execution support
+
+# Testing utilities
+jsonschema==4.21.1  # JSON validation
