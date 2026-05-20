@@ -28,9 +28,10 @@ Create Tag With Custom Color
     Register User    tagcolor@example.com    tagcolor    Tag Color    password123
     ${token}=    Get Auth Token    tagcolor    password123
 
-    ${response}=    Create Tag    urgent    ${token}    \#ff0000
+    ${red_color}=    Set Variable    #ff0000
+    ${response}=    Create Tag    urgent    ${token}    ${red_color}
     Response Status Should Be    ${response}    201
-    Response Field Should Equal    ${response}    color    \#ff0000
+    Response Field Should Equal    ${response}    color    #ff0000
 
 Create Tag With Duplicate Name Should Fail
     [Documentation]    Test that tag names must be unique
