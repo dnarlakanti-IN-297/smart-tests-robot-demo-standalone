@@ -154,7 +154,17 @@ jobs:
     - name: Record test results with Smart Tests
       if: always()
       run: |
-        smart-tests record tests robot --session @session.txt "test-results/output.xml"
+        if [ -f test-results/output.xml ]; then
+          echo "Recording Robot Framework test results..."
+          smart-tests record tests robot --session @session.txt test-results/output.xml || {
+            echo "Failed to record tests, checking file..."
+            ls -la test-results/
+            cat test-results/output.xml | head -50
+          }
+        else
+          echo "No test results file found at test-results/output.xml"
+          ls -la test-results/ || echo "test-results directory not found"
+        fi
 
     - name: Upload Robot Framework results
       if: always()
