@@ -71,9 +71,11 @@ Project With Tags And Issues Workflow
     ${project_id}=    Get From Dictionary    ${proj_response.json()}    id
 
     # Create multiple tags
-    ${bug_tag}=    Create Tag    bug    ${token}    \#ff0000
+    ${red_color}=    Set Variable    #ff0000
+    ${green_color}=    Set Variable    #00ff00
+    ${bug_tag}=    Create Tag    bug    ${token}    ${red_color}
     Response Status Should Be    ${bug_tag}    201
-    ${feature_tag}=    Create Tag    feature    ${token}    \#00ff00
+    ${feature_tag}=    Create Tag    feature    ${token}    ${green_color}
     Response Status Should Be    ${feature_tag}    201
 
     # Create issues of different types
