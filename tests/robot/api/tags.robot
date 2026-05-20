@@ -28,7 +28,7 @@ Create Tag With Custom Color
     Register User    tagcolor@example.com    tagcolor    Tag Color    password123
     ${token}=    Get Auth Token    tagcolor    password123
 
-    ${response}=    Create Tag    urgent    ${token}    color=\#ff0000
+    ${response}=    Create Tag    urgent    ${token}    \#ff0000
     Response Status Should Be    ${response}    201
     Response Field Should Equal    ${response}    color    \#ff0000
 

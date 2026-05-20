@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_active_user
 from app.database import get_db
 from app.models.user import User
+from app.schemas.comment import Comment
 from app.schemas.issue import Issue, IssueCreate, IssueList, IssueUpdate
+from app.services.comment_service import CommentService
 from app.services.issue_service import IssueService
 
 router = APIRouter()
@@ -86,3 +88,16 @@ def delete_issue(
     """Delete issue"""
     issue_service = IssueService(db)
     issue_service.delete(issue_id, current_user)
+
+
+@router.get("/{issue_id}/comments", response_model=List[Comment])
+def get_issue_comments(
+    issue_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Get comments for an issue"""
+    comment_service = CommentService(db)
+    return comment_service.get_by_issue(issue_id, skip, limit)

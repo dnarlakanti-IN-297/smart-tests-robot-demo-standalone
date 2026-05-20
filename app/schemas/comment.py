@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 class CommentBase(BaseModel):
     """Base comment schema"""
 
-    content: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=15)
 
 
 class CommentCreate(CommentBase):
@@ -21,7 +21,7 @@ class CommentCreate(CommentBase):
 class CommentUpdate(BaseModel):
     """Schema for updating a comment"""
 
-    content: str = Field(..., min_length=1)
+    content: str = Field(..., min_length=15)
 
 
 class Comment(CommentBase):
