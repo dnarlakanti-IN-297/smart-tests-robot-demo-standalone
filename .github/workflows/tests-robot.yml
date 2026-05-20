@@ -1,0 +1,183 @@
+name: Robot Framework Tests
+
+on:
+  push:
+    branches: [ main, patch-robot-demo ]
+    paths:
+      - 'app/**'
+      - 'tests/robot/**'
+      - 'requirements.txt'
+      - 'requirements-robot.txt'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'tests/robot/**'
+      - 'requirements.txt'
+      - 'requirements-robot.txt'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Smart Tests mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      target:
+        description: 'Optimization target (e.g., --target 50%)'
+        required: false
+        default: '--target 80%'
+        type: string
+
+jobs:
+  robot-api-tests:
+    name: Robot Framework API Tests
+    runs-on: ubuntu-latest
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      # Use observation mode unless manually triggered with production mode
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
+      # Use custom target if provided via workflow_dispatch, otherwise default to --target 80%
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 80%' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-robot.txt
+        pip3 install --no-cache-dir smart-tests-cli~=2.0
+
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite robot-api > session.txt
+        cat session.txt
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Generate Robot test list
+      run: |
+        robot --dryrun --output /tmp/dry_output.xml --log /tmp/dry_log.html --report /tmp/dry_report.html tests/robot/ 2>&1 | grep -E "^\S+\.\S+\s+::" | awk '{print $1}' > test_list.txt || true
+        # If grep didn't find anything, list all robot files as fallback
+        if [ ! -s test_list.txt ]; then
+          find tests/robot/ -name "*.robot" -type f > test_list.txt
+        fi
+        cat test_list.txt
+
+    - name: Create Smart Tests subset
+      run: |
+        cat test_list.txt | smart-tests subset robot --session @session.txt $TARGET_FLAG > smart-tests-subset.txt || echo "ALL" > smart-tests-subset.txt
+        cat smart-tests-subset.txt
+
+    - name: Start application and run Robot tests
+      continue-on-error: true
+      run: |
+        # Start application in background
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+        echo "Started application with PID $APP_PID"
+
+        # Wait for application to be ready
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        # Run Robot Framework tests
+        mkdir -p test-results
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
+
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          echo "Running Robot Framework subset tests"
+          # Convert test names to --test arguments
+          while IFS= read -r test_name; do
+            TEST_ARGS="$TEST_ARGS --test \"$test_name\""
+          done < smart-tests-subset.txt
+
+          eval robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --loglevel INFO \
+            $TEST_ARGS \
+            tests/robot/ || true
+        else
+          echo "Running all Robot Framework tests"
+          robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --loglevel INFO \
+            tests/robot/ || true
+        fi
+
+        # Cleanup
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Record test results with Smart Tests
+      if: always()
+      run: |
+        smart-tests record tests robot --session @session.txt "test-results/output.xml"
+
+    - name: Upload Robot Framework results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-results
+        path: |
+          test-results/
+        retention-days: 30
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Test Summary ==="
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('test-results/output.xml')
+          root = tree.getroot()
+          stats = root.find('.//statistics/total/stat')
+          if stats is not None:
+            print(f\"Total: {stats.get('pass')} passed, {stats.get('fail')} failed\")
+          " || echo "Could not parse test results"
+        else
+          echo "No test results found"
+        fi
