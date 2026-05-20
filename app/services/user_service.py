@@ -39,14 +39,14 @@ class UserService:
         if self.repo.get_by_email(user_data.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered",
+                detail="email already registered",
             )
 
         # Check if username already exists
         if self.repo.get_by_username(user_data.username):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already taken",
+                detail="username already taken",
             )
 
         # Create user with hashed password
@@ -69,7 +69,7 @@ class UserService:
             if existing_user:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Email already registered",
+                    detail="email already registered",
                 )
             user.email = user_data.email
 

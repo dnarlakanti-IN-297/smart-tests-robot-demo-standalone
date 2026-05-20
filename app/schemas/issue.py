@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 class IssueBase(BaseModel):
     """Base issue schema"""
 
-    title: str = Field(..., min_length=1, max_length=200)
+    title: str = Field(..., min_length=20, max_length=200)
     description: Optional[str] = None
     status: str = "open"
     type: str = "task"
@@ -27,7 +27,7 @@ class IssueCreate(IssueBase):
 class IssueUpdate(BaseModel):
     """Schema for updating an issue"""
 
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    title: Optional[str] = Field(None, min_length=20, max_length=200)
     description: Optional[str] = None
     status: Optional[str] = None
     type: Optional[str] = None
