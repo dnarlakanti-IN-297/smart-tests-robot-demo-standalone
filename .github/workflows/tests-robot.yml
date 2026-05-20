@@ -61,6 +61,11 @@ jobs:
           smarttests config set-organization "$CLOUDBEES_ORGANIZATION"
           echo "Smart Tests configured for organization: $CLOUDBEES_ORGANIZATION"
 
+      - name: Initialize database
+        run: |
+          python -m app.db.init_db
+          python -m app.db.seed_data
+
       - name: Record build start
         run: |
           BUILD_ID=$(smarttests record build start \
