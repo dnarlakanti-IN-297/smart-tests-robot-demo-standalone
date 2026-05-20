@@ -132,6 +132,7 @@ jobs:
             --output output.xml \
             --log log.html \
             --report report.html \
+            --xunit junit.xml \
             --loglevel INFO \
             $TEST_ARGS \
             tests/robot/ || true
@@ -142,6 +143,7 @@ jobs:
             --output output.xml \
             --log log.html \
             --report report.html \
+            --xunit junit.xml \
             --loglevel INFO \
             tests/robot/ || true
         fi
@@ -154,20 +156,14 @@ jobs:
     - name: Record test results with Smart Tests
       if: always()
       run: |
-        if [ -f test-results/output.xml ]; then
-          echo "Recording Robot Framework test results..."
-          # Try recording, but don't fail the build if it doesn't work
-          smart-tests record tests robot --session @session.txt test-results/output.xml || {
-            echo "Warning: Could not record tests to Smart Tests"
-            echo "This is a known issue with Robot Framework XML format compatibility"
-            echo "Tests still ran successfully - check artifacts for results"
-            echo ""
-            echo "Robot Framework test summary:"
-            grep -A 5 '<statistics>' test-results/output.xml || echo "Could not parse statistics"
-          }
+        if [ -f test-results/junit.xml ]; then
+          echo "Recording Robot Framework test results (JUnit format)..."
+          smart-tests record tests pytest --session @session.txt test-results/junit.xml
+          echo "✅ Test results recorded to Smart Tests successfully!"
         else
-          echo "No test results file found at test-results/output.xml"
+          echo "❌ No JUnit results file found at test-results/junit.xml"
           ls -la test-results/ || echo "test-results directory not found"
+          exit 1
         fi
 
     - name: Upload Robot Framework results
