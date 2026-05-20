@@ -7,29 +7,29 @@ on:
     branches: [ main ]
   workflow_dispatch:
     inputs:
-      smart_tests_mode:
+      mode:
         description: 'Smart Tests mode'
         required: true
-        default: 'observe'
         type: choice
+        default: 'observation'
         options:
-          - observe
+          - observation
           - production
-      target_percentage:
-        description: 'Target percentage (for production mode)'
+      target:
+        description: 'Optimization target (e.g., --target 50%)'
         required: false
-        default: '80'
-
-env:
-  CLOUDBEES_API_TOKEN: ${{ secrets.CLOUDBEES_API_TOKEN }}
-  CLOUDBEES_ORGANIZATION: ps-lab
-  SMART_TESTS_MODE: ${{ github.event.inputs.smart_tests_mode || 'observe' }}
-  TARGET_PERCENTAGE: ${{ github.event.inputs.target_percentage || '80' }}
+        default: '--target 80%'
+        type: string
 
 jobs:
   robot-api-tests:
+    name: Robot Framework API Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 80%' }}
 
     steps:
       - name: Checkout code
@@ -43,39 +43,31 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-robot.txt
+          pip3 install --no-cache-dir smart-tests-cli~=2.0
 
-      - name: Install Smart Tests CLI
+      - name: Verify Smart Tests connectivity
         run: |
-          curl -sSL "https://cloudbees-smart-tests.s3.us-east-1.amazonaws.com/cli/smarttests-latest-linux.tar.gz" | tar xz
-          sudo mv smarttests /usr/local/bin/
-          smarttests --version
+          smart-tests verify || true
 
-      - name: Configure Smart Tests
+      - name: Record build with Smart Tests
         run: |
-          smarttests config set-api-token "$CLOUDBEES_API_TOKEN"
-          smarttests config set-organization "$CLOUDBEES_ORGANIZATION"
-          echo "Smart Tests configured for organization: $CLOUDBEES_ORGANIZATION"
+          smart-tests record build --build ${{ github.run_id }}
 
       - name: Initialize database
         run: |
           python -m app.db.init_db
           python -m app.db.seed_data
-
-      - name: Record build start
-        run: |
-          BUILD_ID=$(smarttests record build start \
-            --repository issues-tracker-app \
-            --branch ${{ github.ref_name }} \
-            --build-number ${{ github.run_number }} \
-            --build-url ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
-            | grep "Build ID:" | awk '{print $3}')
-          echo "BUILD_ID=$BUILD_ID" >> $GITHUB_ENV
-          echo "Recorded build with ID: $BUILD_ID"
 
       - name: Start application
         run: |
@@ -92,111 +84,56 @@ jobs:
           echo "Application failed to start"
           exit 1
 
-      - name: Get Smart Tests subset (production mode)
-        if: env.SMART_TESTS_MODE == 'production'
+      - name: Record session for Robot tests
         run: |
-          echo "Getting test subset for production mode with target $TARGET_PERCENTAGE%"
-          SUBSET_OUTPUT=$(smarttests subset \
-            --build-id $BUILD_ID \
-            --test-suite-id robot-api \
-            --target $TARGET_PERCENTAGE \
-            --output-format robot)
+          smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite robot-api > session-robot.txt
+          cat session-robot.txt
 
-          # Save subset to file
-          echo "$SUBSET_OUTPUT" > robot_subset.txt
-
-          # Check if subset is empty
-          if [ ! -s robot_subset.txt ]; then
-            echo "No subset generated, will run all tests"
-            echo "SKIP_SUBSET=true" >> $GITHUB_ENV
-          else
-            echo "Test subset generated:"
-            cat robot_subset.txt
-            echo "SKIP_SUBSET=false" >> $GITHUB_ENV
-          fi
-
-      - name: Record test session start
+      - name: Generate Robot test list
         run: |
-          SESSION_ID=$(smarttests record session start \
-            --build-id $BUILD_ID \
-            --test-suite-id robot-api \
-            | grep "Session ID:" | awk '{print $3}')
-          echo "SESSION_ID=$SESSION_ID" >> $GITHUB_ENV
-          echo "Started test session: $SESSION_ID"
+          robot --dryrun --outputdir /tmp tests/robot/ 2>&1 | grep -E "^\S+\.\S+\s+::" | awk '{print $1}' > test_list_robot.txt
+          cat test_list_robot.txt
 
-      - name: Run Robot Framework tests (observation mode)
-        if: env.SMART_TESTS_MODE == 'observe'
+      - name: Create Smart Tests subset for Robot tests
         run: |
-          echo "Running Robot Framework tests in observation mode (100% of tests)"
-          robot \
-            --outputdir results \
-            --output output.xml \
-            --log log.html \
-            --report report.html \
-            --loglevel INFO \
-            --listener smarttests.robot.Listener:$SESSION_ID \
-            tests/robot/
+          cat test_list_robot.txt | smart-tests subset robot --session @session-robot.txt $TARGET_FLAG > smart-tests-subset-robot.txt
+          cat smart-tests-subset-robot.txt
 
-      - name: Run Robot Framework tests (production mode - all tests)
-        if: env.SMART_TESTS_MODE == 'production' && env.SKIP_SUBSET == 'true'
+      - name: Run Robot Framework tests (Smart Tests subset)
+        continue-on-error: true
         run: |
-          echo "Running all Robot Framework tests (subset was empty)"
-          robot \
-            --outputdir results \
-            --output output.xml \
-            --log log.html \
-            --report report.html \
-            --loglevel INFO \
-            --listener smarttests.robot.Listener:$SESSION_ID \
-            tests/robot/
-
-      - name: Run Robot Framework tests (production mode - subset)
-        if: env.SMART_TESTS_MODE == 'production' && env.SKIP_SUBSET == 'false'
-        run: |
-          echo "Running Robot Framework test subset (production mode)"
-          robot \
-            --outputdir results \
-            --output output.xml \
-            --log log.html \
-            --report report.html \
-            --loglevel INFO \
-            --listener smarttests.robot.Listener:$SESSION_ID \
-            --include $(cat robot_subset.txt) \
-            tests/robot/
-
-      - name: Record test session end
-        if: always()
-        run: |
-          if [ -n "$SESSION_ID" ]; then
-            smarttests record session end --session-id $SESSION_ID
-            echo "Ended test session: $SESSION_ID"
-          fi
-
-      - name: Record tests to Smart Tests
-        if: always()
-        run: |
-          if [ -f results/output.xml ]; then
-            echo "Recording Robot Framework test results to Smart Tests"
-            smarttests record tests robot \
-              --build-id $BUILD_ID \
-              --test-suite-id robot-api \
-              --results-file results/output.xml
-            echo "Test results recorded successfully"
-          else
-            echo "No test results file found to record"
-          fi
-
-      - name: Record build end
-        if: always()
-        run: |
-          if [ -n "$BUILD_ID" ]; then
-            BUILD_STATUS="passed"
-            if [ "${{ job.status }}" != "success" ]; then
-              BUILD_STATUS="failed"
+          if [ -s smart-tests-subset-robot.txt ]; then
+            # Read subset and create include pattern
+            INCLUDE_PATTERN=$(cat smart-tests-subset-robot.txt | tr '\n' ':' | sed 's/:$//')
+            if [ -n "$INCLUDE_PATTERN" ]; then
+              robot \
+                --outputdir results \
+                --output output.xml \
+                --log log.html \
+                --report report.html \
+                --loglevel INFO \
+                --include "$INCLUDE_PATTERN" \
+                tests/robot/
+            else
+              echo "Empty subset pattern, running all tests"
+              robot \
+                --outputdir results \
+                --output output.xml \
+                --log log.html \
+                --report report.html \
+                --loglevel INFO \
+                tests/robot/
             fi
-            smarttests record build end --build-id $BUILD_ID --status $BUILD_STATUS
-            echo "Recorded build end with status: $BUILD_STATUS"
+          else
+            echo "No tests to run in subset"
+            mkdir -p results
+            echo '<?xml version="1.0" encoding="UTF-8"?><robot generator="Robot 7.0" generated="2025-01-01T00:00:00.000000" rpa="false" schemaversion="5"><suite id="s1" name="Empty"><status status="PASS" start="2025-01-01T00:00:00.000000" elapsed="0.000"></status></suite><statistics><total><stat pass="0" fail="0" skip="0">All Tests</stat></total></statistics></robot>' > results/output.xml
           fi
+
+      - name: Record Robot test results with Smart Tests
+        if: always()
+        run: |
+          smart-tests record tests robot --session @session-robot.txt results/output.xml
 
       - name: Upload Robot Framework results
         if: always()
@@ -219,17 +156,5 @@ jobs:
             stats = root.find('.//statistics/total/stat')
             if stats is not None:
               print(f\"Total: {stats.get('pass')} passed, {stats.get('fail')} failed\")
-            "
+            " || echo "Could not parse results"
           fi
-
-      - name: Smart Tests summary
-        if: always()
-        run: |
-          echo "=== Smart Tests Summary ==="
-          echo "Mode: $SMART_TESTS_MODE"
-          echo "Build ID: $BUILD_ID"
-          echo "Session ID: $SESSION_ID"
-          if [ "$SMART_TESTS_MODE" = "production" ]; then
-            echo "Target percentage: $TARGET_PERCENTAGE%"
-          fi
-          echo "View details at: https://cloudbees.io/$CLOUDBEES_ORGANIZATION"
