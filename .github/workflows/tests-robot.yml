@@ -85,18 +85,11 @@ jobs:
         python -m app.db.init_db
         python -m app.db.seed_data
 
-    - name: Generate Robot test list
-      run: |
-        robot --dryrun --output /tmp/dry_output.xml --log /tmp/dry_log.html --report /tmp/dry_report.html tests/robot/ 2>&1 | grep -E "^\S+\.\S+\s+::" | awk '{print $1}' > test_list.txt || true
-        # If grep didn't find anything, list all robot files as fallback
-        if [ ! -s test_list.txt ]; then
-          find tests/robot/ -name "*.robot" -type f > test_list.txt
-        fi
-        cat test_list.txt
-
     - name: Create Smart Tests subset
       run: |
-        cat test_list.txt | smart-tests subset robot --session @session.txt $TARGET_FLAG > smart-tests-subset.txt || echo "ALL" > smart-tests-subset.txt
+        # Use --get-tests-from-previous-sessions to automatically fetch test names from observation runs
+        smart-tests subset robot --session @session.txt $TARGET_FLAG --get-tests-from-previous-sessions > smart-tests-subset.txt || echo "ALL" > smart-tests-subset.txt
+        echo "Subset selection result:"
         cat smart-tests-subset.txt
 
     - name: Start application and run Robot tests
