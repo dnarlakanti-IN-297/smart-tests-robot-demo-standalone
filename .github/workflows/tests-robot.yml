@@ -144,41 +144,18 @@ jobs:
 
         # Run Robot Framework tests
         mkdir -p test-results
-        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
 
-        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
-          SUBSET_COUNT=$(wc -l < smart-tests-subset.txt)
-          echo "Running Robot Framework subset: $SUBSET_COUNT tests"
-
-          # Convert pytest format back to Robot format for execution
-          # tests.robot.api.auth::test_register_new_user_successfully -> Api.Auth.Register New User Successfully
-          TEST_ARGS=""
-          while IFS= read -r pytest_name; do
-            robot_test=$(python3 scripts/pytest_to_robot.py <<< "$pytest_name")
-            TEST_ARGS="$TEST_ARGS --test \"$robot_test\""
-          done < smart-tests-subset.txt
-
-          echo "Running subset tests with Robot Framework"
-          eval robot \
-            --outputdir test-results \
-            --output output.xml \
-            --log log.html \
-            --report report.html \
-            --xunit junit.xml \
-            --loglevel INFO \
-            $TEST_ARGS \
-            tests/robot/ || true
-        else
-          echo "Running all Robot Framework tests"
-          robot \
-            --outputdir test-results \
-            --output output.xml \
-            --log log.html \
-            --report report.html \
-            --xunit junit.xml \
-            --loglevel INFO \
-            tests/robot/ || true
-        fi
+        # For now, always run all tests to establish observation baseline
+        # Subset execution will be enabled once format transformation is fully working
+        echo "Running all Robot Framework tests (observation mode)"
+        robot \
+          --outputdir test-results \
+          --output output.xml \
+          --log log.html \
+          --report report.html \
+          --xunit junit.xml \
+          --loglevel INFO \
+          tests/robot/ || true
 
         # Cleanup
         kill $APP_PID 2>/dev/null || true
