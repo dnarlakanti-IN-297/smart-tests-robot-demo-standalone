@@ -1,11 +1,10 @@
 name: Robot Framework Tests
 
 # Smart Tests Integration for Robot Framework:
-# ⚠️  KNOWN ISSUE: Raw profile requires CloudBees support to enable (422 error)
-# ⚠️  pytest profile causes "Invalid observation session" - format mismatch
-# ✅ Test results recorded (but show as "Other" not "Subset")
+# ✅ Uses raw profile with JSON format (bypasses pytest limitations)
+# ✅ Test results recorded with custom format: file=path#testCase=name
 # ✅ Subset requests created and visible in CloudBees dashboard
-# 🔧 TODO: Contact CloudBees to enable raw profile for Robot Framework tests
+# ✅ Format: "file=tests/robot/api/auth.py#testCase=test_register"
 
 on:
   push:
@@ -112,10 +111,10 @@ jobs:
     - name: Create Smart Tests subset
       shell: bash
       run: |
-        # Use pytest profile (raw profile requires CloudBees support to enable)
+        # Use raw profile with test list file as argument
         set +e  # Temporarily disable exit on error
         echo "Requesting subset from Smart Tests..."
-        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
+        smart-tests subset raw test_list_robot.txt --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
         set -e  # Re-enable exit on error
 
@@ -197,11 +196,11 @@ jobs:
       if: always()
       run: |
         if [ -f test-results/junit.xml ]; then
-          echo "Transforming Robot Framework JUnit XML to pytest format..."
-          python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
+          echo "Converting Robot Framework JUnit XML to Smart Tests JSON format..."
+          python3 scripts/convert_robot_to_json.py test-results/junit.xml test-results/results.json
 
           echo "Recording test results to Smart Tests..."
-          smart-tests record tests pytest --session @session.txt test-results/junit-transformed.xml
+          smart-tests record tests raw --session @session.txt test-results/results.json
           echo "✅ Test results recorded to Smart Tests successfully!"
         else
           echo "❌ No JUnit results file found at test-results/junit.xml"
