@@ -103,12 +103,15 @@ jobs:
         head -10 test_list_robot.txt
 
     - name: Create Smart Tests subset
+      shell: bash
       run: |
         # Pipe test names to Smart Tests to create subset
         # Note: Do NOT pass --observation flag here - it's already in the session
+        set +e  # Temporarily disable exit on error
         echo "Requesting subset from Smart Tests..."
         cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
+        set -e  # Re-enable exit on error
 
         if [ $EXIT_CODE -ne 0 ]; then
           echo "⚠️  Smart Tests subset command failed with exit code $EXIT_CODE"
