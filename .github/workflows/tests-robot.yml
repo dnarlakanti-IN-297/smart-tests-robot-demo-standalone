@@ -85,10 +85,29 @@ jobs:
         python -m app.db.init_db
         python -m app.db.seed_data
 
+    - name: Generate Robot test list from previous runs
+      run: |
+        # Extract test names from Smart Tests using --get-tests-from-previous-sessions
+        # This generates a list of all tests that were run in previous observation sessions
+        smart-tests subset pytest --session @session.txt --get-tests-from-previous-sessions --target 100% > test_list_robot.txt 2>&1 || true
+
+        # If that didn't work, generate a simple list of all Robot test files
+        if [ ! -s test_list_robot.txt ] || grep -q "Error\|400\|hasn't have calculated" test_list_robot.txt; then
+          echo "Smart Tests backend not ready yet, generating test list from test files..."
+          find tests/robot -name "*.robot" -type f | grep -v resources | grep -v __pycache__ > test_list_robot.txt
+        fi
+
+        echo "Generated test list:"
+        cat test_list_robot.txt
+
     - name: Create Smart Tests subset
       run: |
-        # Use pytest profile (same as recording step) with --get-tests-from-previous-sessions
-        smart-tests subset pytest --session @session.txt $TARGET_FLAG --get-tests-from-previous-sessions > smart-tests-subset.txt || echo "ALL" > smart-tests-subset.txt
+        # Use pytest profile and pipe test list via stdin (same approach as tests.yml)
+        if [ -s test_list_robot.txt ]; then
+          cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1 || echo "ALL" > smart-tests-subset.txt
+        else
+          echo "ALL" > smart-tests-subset.txt
+        fi
         echo "Subset selection result:"
         cat smart-tests-subset.txt
 
