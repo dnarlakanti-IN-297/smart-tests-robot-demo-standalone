@@ -11,13 +11,15 @@ def from_pytest_format(pytest_name):
     Convert raw format to Robot Framework test name.
 
     Input:
-      "tests/robot/integration/issue_lifecycle.py#test_bug_fix_workflow_with_type_and_priority"
+      "file=tests/robot/integration/issue_lifecycle.py#testCase=test_bug_fix_workflow_with_type_and_priority"
 
     Output:
       "Bug Fix Workflow With Type And Priority"  (just the test name)
     """
-    # Support both :: (pytest) and # (raw) separators
-    if "#" in pytest_name:
+    # Support raw format: file=path#testCase=name
+    if "#testCase=" in pytest_name:
+        _, method_part = pytest_name.split("#testCase=", 1)
+    elif "#" in pytest_name:
         _, method_part = pytest_name.split("#", 1)
     elif "::" in pytest_name:
         _, method_part = pytest_name.split("::", 1)

@@ -115,7 +115,7 @@ jobs:
         # Raw profile gives us full control over test identifier format
         set +e  # Temporarily disable exit on error
         echo "Requesting subset from Smart Tests..."
-        cat test_list_robot.txt | smart-tests subset raw --session @session.txt $TARGET_FLAG --test-path "file#testCase" > smart-tests-subset.txt 2>&1
+        cat test_list_robot.txt | smart-tests subset raw --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
         set -e  # Re-enable exit on error
 
@@ -201,7 +201,7 @@ jobs:
           python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
 
           echo "Recording test results to Smart Tests..."
-          smart-tests record tests raw --session @session.txt --test-path "file#testCase" test-results/junit-transformed.xml
+          smart-tests record tests raw --session @session.txt test-results/junit-transformed.xml
           echo "✅ Test results recorded to Smart Tests successfully!"
         else
           echo "❌ No JUnit results file found at test-results/junit.xml"
