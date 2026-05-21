@@ -70,29 +70,67 @@ def from_pytest_format(pytest_name):
 
 
 def transform_junit_xml(input_path, output_path):
-    """Transform Robot Framework JUnit XML to pytest-compatible format."""
+    """Transform Robot Framework JUnit XML to pytest-compatible flat format."""
     tree = ET.parse(input_path)
     root = tree.getroot()
 
-    # Transform all testcase elements
+    # Create a new flat testsuite for pytest format
+    # Pytest expects a single top-level testsuite with all testcases directly under it
+    new_root = ET.Element('testsuite')
+    new_root.set('name', 'pytest')
+    new_root.set('tests', '0')
+    new_root.set('errors', '0')
+    new_root.set('failures', '0')
+    new_root.set('skipped', '0')
+    new_root.set('time', '0')
+
+    test_count = 0
+    error_count = 0
+    failure_count = 0
+    skipped_count = 0
+    total_time = 0.0
+
+    # Extract all testcases from nested structure and add to flat structure
     for testcase in root.findall('.//testcase'):
         classname = testcase.get('classname', '')
         name = testcase.get('name', '')
 
         if classname and name:
-            # Convert to pytest format: tests.robot.api.auth::test_method
+            # Convert to pytest format
             pytest_name = to_pytest_format(classname, name)
-
-            # For Smart Tests to match subset requests, we need the exact format
-            # that was sent in the subset request (file::method, not file::class::method)
             parts = pytest_name.split("::")
             if len(parts) == 2:
-                # Set classname to the full pytest path, name to the test method
-                testcase.set('classname', parts[0])  # tests.robot.api.auth
-                testcase.set('name', parts[1])        # test_access_protected_endpoint_...
+                # Create new testcase element with pytest format
+                new_testcase = ET.Element('testcase')
+                new_testcase.set('classname', parts[0])  # tests.robot.api.auth
+                new_testcase.set('name', parts[1])        # test_access_protected_endpoint_...
+                new_testcase.set('time', testcase.get('time', '0'))
+
+                # Copy failure/error/skipped elements if present
+                for child in testcase:
+                    if child.tag in ('failure', 'error', 'skipped', 'system-out', 'system-err'):
+                        new_testcase.append(child)
+                        if child.tag == 'failure':
+                            failure_count += 1
+                        elif child.tag == 'error':
+                            error_count += 1
+                        elif child.tag == 'skipped':
+                            skipped_count += 1
+
+                new_root.append(new_testcase)
+                test_count += 1
+                total_time += float(testcase.get('time', '0'))
+
+    # Update testsuite attributes
+    new_root.set('tests', str(test_count))
+    new_root.set('errors', str(error_count))
+    new_root.set('failures', str(failure_count))
+    new_root.set('skipped', str(skipped_count))
+    new_root.set('time', str(total_time))
 
     # Write transformed XML
-    tree.write(output_path, encoding='utf-8', xml_declaration=True)
+    new_tree = ET.ElementTree(new_root)
+    new_tree.write(output_path, encoding='utf-8', xml_declaration=True)
     print(f"Transformed JUnit XML written to {output_path}")
 
 
