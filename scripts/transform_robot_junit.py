@@ -104,6 +104,7 @@ def transform_junit_xml(input_path, output_path):
                 new_testcase = ET.Element('testcase')
                 new_testcase.set('classname', parts[0])  # tests.robot.api.auth
                 new_testcase.set('name', parts[1])        # test_access_protected_endpoint_...
+                new_testcase.set('file', parts[0].replace('.', '/') + '.py')  # tests/robot/api/auth.py
                 new_testcase.set('time', testcase.get('time', '0'))
 
                 # Copy failure/error/skipped elements if present
