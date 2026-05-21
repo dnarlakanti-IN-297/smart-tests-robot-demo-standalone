@@ -85,29 +85,31 @@ jobs:
         python -m app.db.init_db
         python -m app.db.seed_data
 
-    - name: Generate Robot test list from previous runs
+    - name: Get test list from Smart Tests
       run: |
-        # Extract test names from Smart Tests using --get-tests-from-previous-sessions
-        # This generates a list of all tests that were run in previous observation sessions
-        smart-tests subset pytest --session @session.txt --get-tests-from-previous-sessions --target 100% > test_list_robot.txt 2>&1 || true
+        # Use Smart Tests to get the list of tests from previous observation sessions
+        # Once backend processing completes (~24 hours), this will return actual test names
+        # Until then, this step will detect the error and we'll fallback to running all tests
+        smart-tests subset pytest --session @session.txt --get-tests-from-previous-sessions --target 100% > test_list_robot.txt 2>&1 || echo "Backend not ready" > test_list_robot.txt
 
-        # If that didn't work, generate a simple list of all Robot test files
-        if [ ! -s test_list_robot.txt ] || grep -q "Error\|400\|hasn't have calculated" test_list_robot.txt; then
-          echo "Smart Tests backend not ready yet, generating test list from test files..."
-          find tests/robot -name "*.robot" -type f | grep -v resources | grep -v __pycache__ > test_list_robot.txt
-        fi
-
-        echo "Generated test list:"
+        echo "Test list response:"
         cat test_list_robot.txt
 
     - name: Create Smart Tests subset
       run: |
-        # Use pytest profile and pipe test list via stdin (same approach as tests.yml)
-        if [ -s test_list_robot.txt ]; then
+        # Check if backend is ready by looking for error messages
+        if grep -q "Backend not ready\|400\|hasn't have calculated\|Error" test_list_robot.txt; then
+          echo "Smart Tests backend still processing, will run all tests"
+          echo "ALL" > smart-tests-subset.txt
+        elif [ -s test_list_robot.txt ]; then
+          # Backend is ready, use the test list to create subset
+          echo "Creating subset from test list"
           cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1 || echo "ALL" > smart-tests-subset.txt
         else
+          echo "No test list available, running all tests"
           echo "ALL" > smart-tests-subset.txt
         fi
+
         echo "Subset selection result:"
         cat smart-tests-subset.txt
 
@@ -134,28 +136,18 @@ jobs:
 
         if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
           echo "Running Robot Framework subset tests"
-          echo "Subset content:"
-          cat smart-tests-subset.txt
+          echo "Subset contains $(wc -l < smart-tests-subset.txt) tests"
 
-          # Smart Tests returns test suite names like "tests.robot.api.auth"
-          # Convert them to file paths and use --suite argument
-          SUITE_ARGS=""
-          while IFS= read -r suite_name; do
-            # Convert dots to slashes for file path: tests.robot.api.auth -> tests/robot/api/auth
-            file_path=$(echo "$suite_name" | tr '.' '/')
-
-            # Check if this is a file path (contains .robot extension)
-            if [[ "$file_path" == *".robot"* ]]; then
-              # Use the file path directly
-              SUITE_ARGS="$SUITE_ARGS --suite \"$file_path\""
-            else
-              # Extract just the suite name (last component): tests.robot.api.auth -> auth
-              suite_short=$(echo "$suite_name" | awk -F'.' '{print $NF}')
-              SUITE_ARGS="$SUITE_ARGS --suite \"$suite_short\""
-            fi
+          # Smart Tests returns full test names like "Robot.Api.Auth.Register New User Successfully"
+          # Use --test argument for each test
+          TEST_ARGS=""
+          while IFS= read -r test_name; do
+            # Remove leading "Robot." prefix if present (Robot Framework doesn't need it)
+            test_name_clean=$(echo "$test_name" | sed 's/^Robot\.//')
+            TEST_ARGS="$TEST_ARGS --test \"$test_name_clean\""
           done < smart-tests-subset.txt
 
-          echo "Robot Framework suite arguments: $SUITE_ARGS"
+          echo "Running subset with --test arguments"
 
           eval robot \
             --outputdir test-results \
@@ -164,7 +156,7 @@ jobs:
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            $SUITE_ARGS \
+            $TEST_ARGS \
             tests/robot/ || true
         else
           echo "Running all Robot Framework tests"
