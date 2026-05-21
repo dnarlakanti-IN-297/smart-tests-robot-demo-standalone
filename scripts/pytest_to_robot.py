@@ -8,18 +8,21 @@ import sys
 
 def from_pytest_format(pytest_name):
     """
-    Convert pytest file path format to Robot Framework test name.
+    Convert raw format to Robot Framework test name.
 
     Input:
-      "tests/robot/integration/issue_lifecycle.py::test_bug_fix_workflow_with_type_and_priority"
+      "tests/robot/integration/issue_lifecycle.py#test_bug_fix_workflow_with_type_and_priority"
 
     Output:
       "Bug Fix Workflow With Type And Priority"  (just the test name)
     """
-    if "::" not in pytest_name:
+    # Support both :: (pytest) and # (raw) separators
+    if "#" in pytest_name:
+        _, method_part = pytest_name.split("#", 1)
+    elif "::" in pytest_name:
+        _, method_part = pytest_name.split("::", 1)
+    else:
         return pytest_name
-
-    _, method_part = pytest_name.split("::", 1)
 
     # test_bug_fix_workflow_with_type_and_priority -> Bug Fix Workflow With Type And Priority
     if method_part.startswith("test_"):
