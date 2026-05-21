@@ -77,6 +77,6 @@ ${ROLE_USER}             USER
 ${ROLE_ADMIN}            ADMIN
 
 # Tag Colors (hex color codes)
-${COLOR_RED}             ${{'\#ff0000'}}
-${COLOR_GREEN}           ${{'\#00ff00'}}
-${COLOR_BLUE}            ${{'\#3498db'}}
+${COLOR_RED}             ${{'#ff0000'}}
+${COLOR_GREEN}           ${{'#00ff00'}}
+${COLOR_BLUE}            ${{'#3498db'}}
