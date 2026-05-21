@@ -80,19 +80,16 @@ def transform_junit_xml(input_path, output_path):
         name = testcase.get('name', '')
 
         if classname and name:
-            # Convert to pytest format
+            # Convert to pytest format: tests.robot.api.auth::test_method
             pytest_name = to_pytest_format(classname, name)
 
-            # Split into file::class::method or file::method
+            # For Smart Tests to match subset requests, we need the exact format
+            # that was sent in the subset request (file::method, not file::class::method)
             parts = pytest_name.split("::")
             if len(parts) == 2:
-                # file::method format
-                testcase.set('classname', parts[0])
-                testcase.set('name', parts[1])
-            elif len(parts) == 3:
-                # file::class::method format
-                testcase.set('classname', f"{parts[0]}.{parts[1]}")
-                testcase.set('name', parts[2])
+                # Set classname to the full pytest path, name to the test method
+                testcase.set('classname', parts[0])  # tests.robot.api.auth
+                testcase.set('name', parts[1])        # test_access_protected_endpoint_...
 
     # Write transformed XML
     tree.write(output_path, encoding='utf-8', xml_declaration=True)
