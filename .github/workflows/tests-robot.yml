@@ -91,25 +91,24 @@ jobs:
         mkdir -p /tmp/robot-dryrun
         robot --dryrun --outputdir /tmp/robot-dryrun --xunit /tmp/robot-dryrun/junit.xml tests/robot/ || true
 
-        # Extract test names from the junit XML in Smart Tests 'raw' format
+        # Extract test names in pytest format for Smart Tests compatibility
         if [ -f "/tmp/robot-dryrun/junit.xml" ]; then
-          python3 scripts/extract_robot_tests.py /tmp/robot-dryrun/junit.xml raw > test_list_robot.txt
+          python3 scripts/extract_robot_tests.py /tmp/robot-dryrun/junit.xml > test_list_robot.txt
         else
           echo "Dry-run failed, cannot proceed without test names"
           exit 1
         fi
 
-        echo "Collected $(wc -l < test_list_robot.txt) test names"
+        echo "Collected $(wc -l < test_list_robot.txt) test names in pytest format"
         head -10 test_list_robot.txt
 
     - name: Create Smart Tests subset
       shell: bash
       run: |
-        # Use 'raw' profile to avoid pytest formatter crashes with Robot Framework names
-        # Raw profile preserves test names as-is, matching what's recorded in JUnit XML
+        # Use pytest profile with pytest-formatted test names
         set +e  # Temporarily disable exit on error
         echo "Requesting subset from Smart Tests..."
-        smart-tests subset raw test_list_robot.txt --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
+        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
         set -e  # Re-enable exit on error
 
@@ -151,19 +150,12 @@ jobs:
           SUBSET_COUNT=$(wc -l < smart-tests-subset.txt)
           echo "Running Robot Framework subset: $SUBSET_COUNT tests"
 
-          # Smart Tests raw format: file=Robot.Api.Auth#test=Register New User Successfully
-          # Convert to Robot Framework --test arguments
+          # Convert pytest format back to Robot format for execution
+          # tests.robot.api.auth::test_register_new_user_successfully -> Api.Auth.Register New User Successfully
           TEST_ARGS=""
-          while IFS= read -r test_path; do
-            # Extract test name from raw format: file=Robot.Api.Auth#test=Register New User Successfully
-            test_name=$(echo "$test_path" | sed 's/.*#test=//')
-            # Extract classname: Robot.Api.Auth
-            classname=$(echo "$test_path" | sed 's/file=//; s/#test=.*//')
-            # Remove "Robot." prefix from classname for Robot Framework
-            suite_path=$(echo "$classname" | sed 's/^Robot\.//')
-            # Construct full test name: Api.Auth.Register New User Successfully
-            full_test_name="${suite_path}.${test_name}"
-            TEST_ARGS="$TEST_ARGS --test \"$full_test_name\""
+          while IFS= read -r pytest_name; do
+            robot_test=$(python3 scripts/pytest_to_robot.py <<< "$pytest_name")
+            TEST_ARGS="$TEST_ARGS --test \"$robot_test\""
           done < smart-tests-subset.txt
 
           echo "Running subset tests with Robot Framework"
@@ -197,8 +189,11 @@ jobs:
       if: always()
       run: |
         if [ -f test-results/junit.xml ]; then
-          echo "Recording Robot Framework test results (JUnit format)..."
-          smart-tests record tests pytest --session @session.txt test-results/junit.xml
+          echo "Transforming Robot Framework JUnit XML to pytest format..."
+          python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
+
+          echo "Recording test results to Smart Tests..."
+          smart-tests record tests pytest --session @session.txt test-results/junit-transformed.xml
           echo "✅ Test results recorded to Smart Tests successfully!"
         else
           echo "❌ No JUnit results file found at test-results/junit.xml"
