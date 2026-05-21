@@ -35,8 +35,8 @@ def to_pytest_format(classname, test_name):
     # Convert test name to method format
     method_name = "test_" + re.sub(r'[^a-zA-Z0-9]+', '_', test_name).lower().strip('_')
 
-    # Use raw profile format: file=path#testCase=name
-    return f"file={file_path}#testCase={method_name}"
+    # Use pytest format: file::testCase
+    return f"{file_path}::{method_name}"
 
 
 def extract_test_names(junit_xml_path):

@@ -1,10 +1,11 @@
 name: Robot Framework Tests
 
 # Smart Tests Integration for Robot Framework:
-# ✅ Test results recorded in pytest format (JUnit XML transformation)
+# ⚠️  KNOWN ISSUE: Raw profile requires CloudBees support to enable (422 error)
+# ⚠️  pytest profile causes "Invalid observation session" - format mismatch
+# ✅ Test results recorded (but show as "Other" not "Subset")
 # ✅ Subset requests created and visible in CloudBees dashboard
-# ✅ Subset execution: Robot Framework --test expects just test name, not full qualified name
-# ✅ Format: pytest "tests.robot.api.auth::test_register" → Robot "--test Register"
+# 🔧 TODO: Contact CloudBees to enable raw profile for Robot Framework tests
 
 on:
   push:
@@ -111,11 +112,10 @@ jobs:
     - name: Create Smart Tests subset
       shell: bash
       run: |
-        # Use raw profile with explicit test path format
-        # Raw profile gives us full control over test identifier format
+        # Use pytest profile (raw profile requires CloudBees support to enable)
         set +e  # Temporarily disable exit on error
         echo "Requesting subset from Smart Tests..."
-        cat test_list_robot.txt | smart-tests subset raw --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
+        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
         set -e  # Re-enable exit on error
 
@@ -197,11 +197,11 @@ jobs:
       if: always()
       run: |
         if [ -f test-results/junit.xml ]; then
-          echo "Transforming Robot Framework JUnit XML to Smart Tests raw format..."
+          echo "Transforming Robot Framework JUnit XML to pytest format..."
           python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
 
           echo "Recording test results to Smart Tests..."
-          smart-tests record tests raw --session @session.txt test-results/junit-transformed.xml
+          smart-tests record tests pytest --session @session.txt test-results/junit-transformed.xml
           echo "✅ Test results recorded to Smart Tests successfully!"
         else
           echo "❌ No JUnit results file found at test-results/junit.xml"
