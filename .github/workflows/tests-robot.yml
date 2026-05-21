@@ -105,7 +105,8 @@ jobs:
     - name: Create Smart Tests subset
       run: |
         # Pipe test names to Smart Tests to create subset
-        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1 || echo "ALL" > smart-tests-subset.txt
+        # Pass --observation flag in observation mode so subset requests appear in the Observe page
+        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $OBSERVATION_FLAG $TARGET_FLAG > smart-tests-subset.txt 2>&1 || echo "ALL" > smart-tests-subset.txt
 
         echo "Subset selection result:"
         cat smart-tests-subset.txt
