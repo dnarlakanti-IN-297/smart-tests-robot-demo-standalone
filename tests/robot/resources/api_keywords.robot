@@ -251,7 +251,7 @@ Delete Comment
 # ============================================================================
 
 Create Tag
-    [Arguments]    ${name}    ${token}    ${color}=\#3498db
+    [Arguments]    ${name}    ${token}    ${color}=#3498db
     [Documentation]    Create a new tag
     ${headers}=    Create Auth Headers    ${token}
     ${tag_data}=    Create Dictionary
