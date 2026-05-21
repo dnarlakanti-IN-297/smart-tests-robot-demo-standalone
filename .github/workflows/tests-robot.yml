@@ -105,11 +105,11 @@ jobs:
     - name: Create Smart Tests subset
       shell: bash
       run: |
-        # Pipe test names to Smart Tests to create subset
-        # Note: Do NOT pass --observation flag here - it's already in the session
+        # Use 'raw' profile to avoid pytest formatter crashes with Robot Framework names
+        # Raw profile preserves test names as-is, matching what's recorded in JUnit XML
         set +e  # Temporarily disable exit on error
         echo "Requesting subset from Smart Tests..."
-        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
+        smart-tests subset raw test_list_robot.txt --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
         set -e  # Re-enable exit on error
 
