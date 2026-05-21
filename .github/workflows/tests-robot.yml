@@ -85,31 +85,19 @@ jobs:
         python -m app.db.init_db
         python -m app.db.seed_data
 
-    - name: Get test list from Smart Tests
+    - name: Generate Robot Framework test list
       run: |
-        # Use Smart Tests to get the list of tests from previous observation sessions
-        # Once backend processing completes (~24 hours), this will return actual test names
-        # Until then, this step will detect the error and we'll fallback to running all tests
-        smart-tests subset pytest --session @session.txt --get-tests-from-previous-sessions --target 100% > test_list_robot.txt 2>&1 || echo "Backend not ready" > test_list_robot.txt
+        # Generate list of Robot test files
+        # Smart Tests will use these to create a subset
+        find tests/robot -name "*.robot" -type f | grep -v resources | grep -v __pycache__ > test_list_robot.txt
 
-        echo "Test list response:"
+        echo "Generated test list:"
         cat test_list_robot.txt
 
     - name: Create Smart Tests subset
       run: |
-        # Check if backend is ready by looking for error messages
-        if grep -q "Backend not ready\|400\|hasn't have calculated\|Error" test_list_robot.txt; then
-          echo "Smart Tests backend still processing, will run all tests"
-          echo "ALL" > smart-tests-subset.txt
-        elif [ -s test_list_robot.txt ]; then
-          # Backend is ready, use the test list to create subset
-          echo "Creating subset from test list"
-          cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1 || echo "ALL" > smart-tests-subset.txt
-        else
-          echo "No test list available, running all tests"
-          echo "ALL" > smart-tests-subset.txt
-        fi
-
+        # Pipe test list to Smart Tests to create subset
+        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt
         echo "Subset selection result:"
         cat smart-tests-subset.txt
 
@@ -132,32 +120,22 @@ jobs:
 
         # Run Robot Framework tests
         mkdir -p test-results
-        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
+        SUBSET_COUNT=$(wc -l < smart-tests-subset.txt | tr -d ' ')
 
-        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
-          echo "Running Robot Framework subset tests"
-          echo "Subset contains $(wc -l < smart-tests-subset.txt) tests"
+        if [ "$SUBSET_COUNT" -gt 0 ]; then
+          echo "Running Robot Framework subset: $SUBSET_COUNT test files"
+          cat smart-tests-subset.txt
 
-          # Smart Tests returns full test names like "Robot.Api.Auth.Register New User Successfully"
-          # Use --test argument for each test
-          TEST_ARGS=""
-          while IFS= read -r test_name; do
-            # Remove leading "Robot." prefix if present (Robot Framework doesn't need it)
-            test_name_clean=$(echo "$test_name" | sed 's/^Robot\.//')
-            TEST_ARGS="$TEST_ARGS --test \"$test_name_clean\""
-          done < smart-tests-subset.txt
-
-          echo "Running subset with --test arguments"
-
-          eval robot \
+          # Smart Tests returns file paths like "tests/robot/api/auth.robot"
+          # Run Robot Framework on each file
+          robot \
             --outputdir test-results \
             --output output.xml \
             --log log.html \
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            $TEST_ARGS \
-            tests/robot/ || true
+            $(cat smart-tests-subset.txt | tr '\n' ' ') || true
         else
           echo "Running all Robot Framework tests"
           robot \
