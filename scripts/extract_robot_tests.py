@@ -32,10 +32,11 @@ def to_pytest_format(classname, test_name):
     file_parts = [re.sub(r'\s+', '_', part.lower()) for part in suite_parts]
     file_path = "tests/robot/" + "/".join(file_parts) + ".py"
 
-    # Convert test name to pytest method format
+    # Convert test name to method format
     method_name = "test_" + re.sub(r'[^a-zA-Z0-9]+', '_', test_name).lower().strip('_')
 
-    return f"{file_path}::{method_name}"
+    # Use # separator for raw profile: file#testCase
+    return f"{file_path}#{method_name}"
 
 
 def extract_test_names(junit_xml_path):
