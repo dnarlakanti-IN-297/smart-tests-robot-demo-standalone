@@ -17,7 +17,7 @@ def to_pytest_format(classname, test_name):
       test_name: "Bug Fix Workflow With Type And Priority"
 
     Output:
-      "tests/robot/integration/issue_lifecycle.robot::test_bug_fix_workflow_with_type_and_priority"
+      "tests/robot/integration/issue_lifecycle.py::test_bug_fix_workflow_with_type_and_priority"
     """
     # Remove "Robot." prefix
     if classname.startswith("Robot."):
@@ -25,11 +25,12 @@ def to_pytest_format(classname, test_name):
     else:
         suite_path = classname
 
-    # Convert suite path to file path: "Integration.Issue Lifecycle" -> "tests/robot/integration/issue_lifecycle.robot"
+    # Convert suite path to file path: "Integration.Issue Lifecycle" -> "tests/robot/integration/issue_lifecycle.py"
     # Use forward slashes for file paths, convert to lowercase, replace spaces with underscores
+    # Use .py extension for pytest compatibility (Smart Tests expects .py files)
     suite_parts = suite_path.split(".")
     file_parts = [re.sub(r'\s+', '_', part.lower()) for part in suite_parts]
-    file_path = "tests/robot/" + "/".join(file_parts) + ".robot"
+    file_path = "tests/robot/" + "/".join(file_parts) + ".py"
 
     # Convert test name to pytest format
     method_name = "test_" + re.sub(r'[^a-zA-Z0-9]+', '_', test_name).lower().strip('_')
@@ -106,7 +107,7 @@ def transform_junit_xml(input_path, output_path):
                 new_testcase = ET.Element('testcase')
                 new_testcase.set('classname', '')  # Empty for file-level tests
                 new_testcase.set('name', parts[1])  # test_access_protected_endpoint_...
-                new_testcase.set('file', parts[0])  # tests/robot/api/auth.robot
+                new_testcase.set('file', parts[0])  # tests/robot/api/auth.py
                 new_testcase.set('time', testcase.get('time', '0'))
 
                 # Copy failure/error/skipped elements if present
