@@ -10,14 +10,14 @@ import re
 
 def to_pytest_format(classname, test_name):
     """
-    Convert Robot Framework test to pytest file path format.
+    Convert Robot Framework test to pytest module format.
 
     Input:
       classname: "Robot.Integration.Issue Lifecycle"
       test_name: "Bug Fix Workflow With Type And Priority"
 
     Output:
-      "tests/robot/integration/issue_lifecycle.py::test_bug_fix_workflow_with_type_and_priority"
+      "tests.robot.integration.issue_lifecycle::test_bug_fix_workflow_with_type_and_priority"
     """
     # Remove "Robot." prefix
     if classname.startswith("Robot."):
@@ -25,12 +25,11 @@ def to_pytest_format(classname, test_name):
     else:
         suite_path = classname
 
-    # Convert suite path to file path: "Integration.Issue Lifecycle" -> "tests/robot/integration/issue_lifecycle.py"
-    # Use forward slashes for file paths, convert to lowercase, replace spaces with underscores
-    # Use .py extension for pytest compatibility (Smart Tests expects .py files)
+    # Convert suite path to module path: "Integration.Issue Lifecycle" -> "tests.robot.integration.issue_lifecycle"
+    # Use dots for module format, convert to lowercase, replace spaces with underscores
     suite_parts = suite_path.split(".")
     file_parts = [re.sub(r'\s+', '_', part.lower()) for part in suite_parts]
-    file_path = "tests/robot/" + "/".join(file_parts) + ".py"
+    file_path = "tests.robot." + ".".join(file_parts)
 
     # Convert test name to pytest format
     method_name = "test_" + re.sub(r'[^a-zA-Z0-9]+', '_', test_name).lower().strip('_')
@@ -103,11 +102,11 @@ def transform_junit_xml(input_path, output_path):
             parts = pytest_name.split("::")
             if len(parts) == 2:
                 # Create new testcase element for pytest
-                # pytest nodeid = file_path::test_name (module path in classname)
+                # Use module format: tests.robot.api.auth
                 new_testcase = ET.Element('testcase')
-                new_testcase.set('file', parts[0])  # tests/robot/api/auth.py
-                new_testcase.set('classname', parts[0].replace('/', '.').replace('.py', ''))  # tests.robot.api.auth
+                new_testcase.set('classname', parts[0])  # tests.robot.api.auth (module format)
                 new_testcase.set('name', parts[1])  # test_access_protected_endpoint_...
+                new_testcase.set('file', parts[0].replace('.', '/') + '.py')  # tests/robot/api/auth.py
                 new_testcase.set('time', testcase.get('time', '0'))
 
                 # Copy failure/error/skipped elements if present
