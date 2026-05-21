@@ -10,34 +10,30 @@ def from_pytest_format(pytest_name):
     Convert pytest format back to Robot Framework format.
 
     Input:
-      "tests.robot.api.auth::test_register_new_user_successfully"
-      "tests.robot.integration.project workflow::test_issue_priority_and_type_combinations_workflow"
+      "tests.robot.integration.issue_lifecycle::test_bug_fix_workflow_with_type_and_priority"
 
     Output:
-      "Api.Auth.Register New User Successfully"
-      "Integration.Project Workflow.Issue Priority And Type Combinations Workflow"
+      "Integration.Issue Lifecycle.Bug Fix Workflow With Type And Priority"
     """
     if "::" not in pytest_name:
         return pytest_name
 
     file_part, method_part = pytest_name.split("::", 1)
 
-    # tests.robot.api.auth -> Api.Auth
-    # tests.robot.integration.project workflow -> Integration.Project Workflow
+    # tests.robot.integration.issue_lifecycle -> Integration.Issue Lifecycle
     if file_part.startswith("tests.robot."):
         suite_path = file_part[12:]  # Remove "tests.robot."
-        # Handle spaces in suite names (e.g., "project workflow")
-        # Split by dots, then capitalize each word (including words within spaces)
+        # Split by dots and convert: issue_lifecycle -> Issue Lifecycle
         suite_parts = []
         for part in suite_path.split("."):
-            # Capitalize each word in multi-word parts
-            capitalized = " ".join(word.capitalize() for word in part.split())
+            # Convert underscores to spaces and capitalize: issue_lifecycle -> Issue Lifecycle
+            capitalized = " ".join(word.capitalize() for word in part.split("_"))
             suite_parts.append(capitalized)
         suite_name = ".".join(suite_parts)
     else:
         suite_name = file_part
 
-    # test_register_new_user_successfully -> Register New User Successfully
+    # test_bug_fix_workflow_with_type_and_priority -> Bug Fix Workflow With Type And Priority
     if method_part.startswith("test_"):
         method_part = method_part[5:]  # Remove "test_"
     test_name = " ".join(word.capitalize() for word in method_part.split("_"))
