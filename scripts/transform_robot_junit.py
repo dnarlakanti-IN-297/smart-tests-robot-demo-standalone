@@ -13,25 +13,26 @@ def to_pytest_format(classname, test_name):
     Convert Robot Framework test to pytest format.
 
     Input:
-      classname: "Robot.Api.Auth"
-      test_name: "Register New User Successfully"
+      classname: "Robot.Integration.Issue Lifecycle"
+      test_name: "Bug Fix Workflow With Type And Priority"
 
     Output:
-      "tests.robot.api.auth::test_register_new_user_successfully"
+      "tests.robot.integration.issue_lifecycle::test_bug_fix_workflow_with_type_and_priority"
     """
-    # Remove "Robot." prefix and convert to lowercase path
+    # Remove "Robot." prefix
     if classname.startswith("Robot."):
         suite_path = classname[6:]  # Remove "Robot."
     else:
         suite_path = classname
 
-    # Convert to pytest path: Api.Auth -> tests/robot/api/auth
-    file_path = "tests.robot." + suite_path.lower().replace(".", ".")
+    # Convert suite path: "Integration.Issue Lifecycle" -> "tests.robot.integration.issue_lifecycle"
+    suite_parts = suite_path.split(".")
+    file_parts = [re.sub(r'\s+', '_', part.lower()) for part in suite_parts]
+    file_path = "tests.robot." + ".".join(file_parts)
 
-    # Convert test name to pytest format: "Register New User Successfully" -> "test_register_new_user_successfully"
+    # Convert test name to pytest format
     method_name = "test_" + re.sub(r'[^a-zA-Z0-9]+', '_', test_name).lower().strip('_')
 
-    # Return pytest format: tests.robot.api.auth::test_register_new_user_successfully
     return f"{file_path}::{method_name}"
 
 
