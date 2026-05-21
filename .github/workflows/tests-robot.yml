@@ -1,5 +1,14 @@
 name: Robot Framework Tests
 
+# Smart Tests Integration Status:
+# ✅ Test results are recorded in pytest format (JUnit XML transformation)
+# ✅ Subset requests are created and visible in CloudBees dashboard
+# ⚠️  "Invalid observation session" warning appears because:
+#     - Subset requests are created (e.g., 44 of 56 tests)
+#     - But all 56 tests are run (not just the 44 subset)
+#     - This causes mismatch: Subset 0, Other 56 instead of Subset 44, Other 0
+# TODO: Implement Robot Framework subset execution with correct test name format
+
 on:
   push:
     branches: [ main, patch-robot-demo ]
@@ -145,9 +154,11 @@ jobs:
         # Run Robot Framework tests
         mkdir -p test-results
 
-        # For now, always run all tests to establish observation baseline
-        # Subset execution will be enabled once format transformation is fully working
-        echo "Running all Robot Framework tests (observation mode)"
+        # NOTE: Robot Framework subset execution is complex due to test name format conversion
+        # For observation mode, running all tests provides complete data for Smart Tests learning
+        # TODO: Implement proper subset execution once format transformation is fully validated
+
+        echo "Running all Robot Framework tests"
         robot \
           --outputdir test-results \
           --output output.xml \
@@ -156,6 +167,8 @@ jobs:
           --xunit junit.xml \
           --loglevel INFO \
           tests/robot/ || true
+
+        echo "Note: Subset requests are created but all tests are run for complete observation data"
 
         # Cleanup
         kill $APP_PID 2>/dev/null || true
