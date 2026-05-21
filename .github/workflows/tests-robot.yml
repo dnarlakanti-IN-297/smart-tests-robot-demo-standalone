@@ -1,13 +1,10 @@
 name: Robot Framework Tests
 
-# Smart Tests Integration Status:
-# ✅ Test results are recorded in pytest format (JUnit XML transformation)
-# ✅ Subset requests are created and visible in CloudBees dashboard
-# ⚠️  "Invalid observation session" warning appears because:
-#     - Subset requests are created (e.g., 44 of 56 tests)
-#     - But all 56 tests are run (not just the 44 subset)
-#     - This causes mismatch: Subset 0, Other 56 instead of Subset 44, Other 0
-# TODO: Implement Robot Framework subset execution with correct test name format
+# Smart Tests Integration for Robot Framework:
+# ✅ Test results recorded in pytest format (JUnit XML transformation)
+# ✅ Subset requests created and visible in CloudBees dashboard
+# ✅ Subset execution: Robot Framework --test expects just test name, not full qualified name
+# ✅ Format: pytest "tests.robot.api.auth::test_register" → Robot "--test Register"
 
 on:
   push:
@@ -153,22 +150,42 @@ jobs:
 
         # Run Robot Framework tests
         mkdir -p test-results
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
 
-        # NOTE: Robot Framework subset execution is complex due to test name format conversion
-        # For observation mode, running all tests provides complete data for Smart Tests learning
-        # TODO: Implement proper subset execution once format transformation is fully validated
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          SUBSET_COUNT=$(wc -l < smart-tests-subset.txt)
+          echo "Running Robot Framework subset: $SUBSET_COUNT tests"
 
-        echo "Running all Robot Framework tests"
-        robot \
-          --outputdir test-results \
-          --output output.xml \
-          --log log.html \
-          --report report.html \
-          --xunit junit.xml \
-          --loglevel INFO \
-          tests/robot/ || true
+          # Convert pytest format to Robot test names (just the test name, not full path)
+          # Example: tests.robot.api.auth::test_register_new_user -> Register New User
+          TEST_ARGS=""
+          while IFS= read -r pytest_name; do
+            robot_test=$(python3 scripts/pytest_to_robot.py <<< "$pytest_name")
+            TEST_ARGS="$TEST_ARGS --test \"$robot_test\""
+          done < smart-tests-subset.txt
 
-        echo "Note: Subset requests are created but all tests are run for complete observation data"
+          echo "Running subset tests with Robot Framework"
+          echo "Sample test names: $(head -3 smart-tests-subset.txt | python3 scripts/pytest_to_robot.py | tr '\n' ', ')"
+          eval robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $TEST_ARGS \
+            tests/robot/ || true
+        else
+          echo "Running all Robot Framework tests (subset returned ALL)"
+          robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            tests/robot/ || true
+        fi
 
         # Cleanup
         kill $APP_PID 2>/dev/null || true
