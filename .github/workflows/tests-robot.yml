@@ -134,10 +134,28 @@ jobs:
 
         if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
           echo "Running Robot Framework subset tests"
-          # Convert test names to --test arguments
-          while IFS= read -r test_name; do
-            TEST_ARGS="$TEST_ARGS --test \"$test_name\""
+          echo "Subset content:"
+          cat smart-tests-subset.txt
+
+          # Smart Tests returns test suite names like "tests.robot.api.auth"
+          # Convert them to file paths and use --suite argument
+          SUITE_ARGS=""
+          while IFS= read -r suite_name; do
+            # Convert dots to slashes for file path: tests.robot.api.auth -> tests/robot/api/auth
+            file_path=$(echo "$suite_name" | tr '.' '/')
+
+            # Check if this is a file path (contains .robot extension)
+            if [[ "$file_path" == *".robot"* ]]; then
+              # Use the file path directly
+              SUITE_ARGS="$SUITE_ARGS --suite \"$file_path\""
+            else
+              # Extract just the suite name (last component): tests.robot.api.auth -> auth
+              suite_short=$(echo "$suite_name" | awk -F'.' '{print $NF}')
+              SUITE_ARGS="$SUITE_ARGS --suite \"$suite_short\""
+            fi
           done < smart-tests-subset.txt
+
+          echo "Robot Framework suite arguments: $SUITE_ARGS"
 
           eval robot \
             --outputdir test-results \
@@ -146,7 +164,7 @@ jobs:
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            $TEST_ARGS \
+            $SUITE_ARGS \
             tests/robot/ || true
         else
           echo "Running all Robot Framework tests"
