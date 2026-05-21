@@ -102,12 +102,12 @@ def transform_junit_xml(input_path, output_path):
             pytest_name = to_pytest_format(classname, name)
             parts = pytest_name.split("::")
             if len(parts) == 2:
-                # Create new testcase element with raw format
-                # Raw profile extracts testPath from file and name attributes
+                # Create new testcase element for pytest
+                # pytest nodeid = file_path::test_name (module path in classname)
                 new_testcase = ET.Element('testcase')
                 new_testcase.set('file', parts[0])  # tests/robot/api/auth.py
+                new_testcase.set('classname', parts[0].replace('/', '.').replace('.py', ''))  # tests.robot.api.auth
                 new_testcase.set('name', parts[1])  # test_access_protected_endpoint_...
-                new_testcase.set('classname', '')  # Empty
                 new_testcase.set('time', testcase.get('time', '0'))
 
                 # Copy failure/error/skipped elements if present

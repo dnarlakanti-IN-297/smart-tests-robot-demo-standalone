@@ -111,10 +111,10 @@ jobs:
     - name: Create Smart Tests subset
       shell: bash
       run: |
-        # Use raw profile with test list file as argument
+        # Use pytest profile
         set +e  # Temporarily disable exit on error
         echo "Requesting subset from Smart Tests..."
-        smart-tests subset raw test_list_robot.txt --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
+        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
         set -e  # Re-enable exit on error
 
@@ -196,11 +196,11 @@ jobs:
       if: always()
       run: |
         if [ -f test-results/junit.xml ]; then
-          echo "Converting Robot Framework JUnit XML to Smart Tests JSON format..."
-          python3 scripts/convert_robot_to_json.py test-results/junit.xml test-results/results.json
+          echo "Transforming Robot Framework JUnit XML to pytest format..."
+          python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
 
           echo "Recording test results to Smart Tests..."
-          smart-tests record tests raw --session @session.txt test-results/results.json
+          smart-tests record tests pytest --session @session.txt test-results/junit-transformed.xml
           echo "✅ Test results recorded to Smart Tests successfully!"
         else
           echo "❌ No JUnit results file found at test-results/junit.xml"
