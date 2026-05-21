@@ -91,12 +91,12 @@ jobs:
         mkdir -p /tmp/robot-dryrun
         robot --dryrun --outputdir /tmp/robot-dryrun --xunit /tmp/robot-dryrun/junit.xml tests/robot/ || true
 
-        # Extract test names from the junit XML
+        # Extract test names from the junit XML in Smart Tests 'raw' format
         if [ -f "/tmp/robot-dryrun/junit.xml" ]; then
-          python3 scripts/extract_robot_tests.py /tmp/robot-dryrun/junit.xml > test_list_robot.txt
+          python3 scripts/extract_robot_tests.py /tmp/robot-dryrun/junit.xml raw > test_list_robot.txt
         else
-          echo "Dry-run failed, using file-based fallback"
-          find tests/robot -name "*.robot" -type f | grep -v resources > test_list_robot.txt
+          echo "Dry-run failed, cannot proceed without test names"
+          exit 1
         fi
 
         echo "Collected $(wc -l < test_list_robot.txt) test names"
@@ -151,13 +151,19 @@ jobs:
           SUBSET_COUNT=$(wc -l < smart-tests-subset.txt)
           echo "Running Robot Framework subset: $SUBSET_COUNT tests"
 
-          # Smart Tests returns test names like "Robot.Api.Auth.Login With Valid Credentials"
+          # Smart Tests raw format: file=Robot.Api.Auth#test=Register New User Successfully
           # Convert to Robot Framework --test arguments
           TEST_ARGS=""
-          while IFS= read -r test_name; do
-            # Remove "Robot." prefix if present
-            clean_name=$(echo "$test_name" | sed 's/^Robot\.//')
-            TEST_ARGS="$TEST_ARGS --test \"$clean_name\""
+          while IFS= read -r test_path; do
+            # Extract test name from raw format: file=Robot.Api.Auth#test=Register New User Successfully
+            test_name=$(echo "$test_path" | sed 's/.*#test=//')
+            # Extract classname: Robot.Api.Auth
+            classname=$(echo "$test_path" | sed 's/file=//; s/#test=.*//')
+            # Remove "Robot." prefix from classname for Robot Framework
+            suite_path=$(echo "$classname" | sed 's/^Robot\.//')
+            # Construct full test name: Api.Auth.Register New User Successfully
+            full_test_name="${suite_path}.${test_name}"
+            TEST_ARGS="$TEST_ARGS --test \"$full_test_name\""
           done < smart-tests-subset.txt
 
           echo "Running subset tests with Robot Framework"
