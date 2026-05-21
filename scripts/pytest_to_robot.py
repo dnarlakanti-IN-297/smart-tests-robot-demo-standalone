@@ -8,10 +8,10 @@ import sys
 
 def from_pytest_format(pytest_name):
     """
-    Convert pytest format to Robot Framework test name.
+    Convert pytest file path format to Robot Framework test name.
 
     Input:
-      "tests.robot.integration.issue_lifecycle::test_bug_fix_workflow_with_type_and_priority"
+      "tests/robot/integration/issue_lifecycle.robot::test_bug_fix_workflow_with_type_and_priority"
 
     Output:
       "Bug Fix Workflow With Type And Priority"  (just the test name)
