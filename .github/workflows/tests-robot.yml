@@ -87,8 +87,8 @@ jobs:
 
     - name: Create Smart Tests subset
       run: |
-        # Use --get-tests-from-previous-sessions to automatically fetch test names from observation runs
-        smart-tests subset robot --session @session.txt $TARGET_FLAG --get-tests-from-previous-sessions > smart-tests-subset.txt || echo "ALL" > smart-tests-subset.txt
+        # Use pytest profile (same as recording step) with --get-tests-from-previous-sessions
+        smart-tests subset pytest --session @session.txt $TARGET_FLAG --get-tests-from-previous-sessions > smart-tests-subset.txt || echo "ALL" > smart-tests-subset.txt
         echo "Subset selection result:"
         cat smart-tests-subset.txt
 
