@@ -1,0 +1,118 @@
+name: Robot Framework Tests (GitHub App)
+
+# Smart Tests GitHub App Verification:
+# 🎯 Purpose: Verify GitHub App can generate confidence curves from historical data
+# ✅ Runs all tests to build historical test result data
+# ✅ Uses cloudbees-oss/smart-tests-results-upload-action@v1
+# ✅ GitHub App automatically processes results for observation mode
+# 📚 Project: https://cloudbees.atlassian.net/wiki/spaces/PRODUCT/pages/6135283723/Project+Running+observation+mode+against+historical+data
+# 📚 Documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
+
+on:
+  push:
+    branches: [ main, patch-robot-demo ]
+    paths:
+      - 'app/**'
+      - 'tests/robot/**'
+      - 'requirements.txt'
+      - 'requirements-robot.txt'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'app/**'
+      - 'tests/robot/**'
+      - 'requirements.txt'
+      - 'requirements-robot.txt'
+  workflow_dispatch:
+
+jobs:
+  robot-api-tests:
+    name: Robot Framework API Tests (GitHub App Verification)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-robot.txt
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Start application and run Robot tests
+      continue-on-error: true
+      run: |
+        # Start application in background
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+        echo "Started application with PID $APP_PID"
+
+        # Wait for application to be ready
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        # Run ALL Robot Framework tests to build historical data
+        mkdir -p test-results
+        echo "Running all Robot Framework tests for historical data collection"
+        robot \
+          --outputdir test-results \
+          --output output.xml \
+          --log log.html \
+          --report report.html \
+          --xunit junit.xml \
+          --loglevel INFO \
+          tests/robot/ || true
+
+        # Cleanup
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Store Test Results for Smart Tests
+      if: always()
+      uses: cloudbees-oss/smart-tests-results-upload-action@v1
+
+    - name: Upload Robot Framework results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-results-github-app
+        path: |
+          test-results/
+        retention-days: 30
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Test Summary ==="
+          python -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('test-results/output.xml')
+          root = tree.getroot()
+          stats = root.find('.//statistics/total/stat')
+          if stats is not None:
+            print(f\"Total: {stats.get('pass')} passed, {stats.get('fail')} failed\")
+          " || echo "Could not parse test results"
+        else
+          echo "No test results found"
+        fi
