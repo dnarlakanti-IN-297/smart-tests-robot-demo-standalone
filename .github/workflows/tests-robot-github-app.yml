@@ -1,10 +1,12 @@
 name: Robot Framework Tests (GitHub App)
 
-# Smart Tests GitHub App Verification:
-# 🎯 Purpose: Verify GitHub App can generate confidence curves from historical data
-# ✅ Runs all tests to build historical test result data
-# ✅ Uses cloudbees-oss/smart-tests-results-upload-action@v1
-# ✅ GitHub App automatically processes results for observation mode
+# Smart Tests GitHub App Integration:
+# 🎯 Purpose: Verify GitHub App + Smart Tests CLI integration
+# ✅ Smart Tests CLI for subset creation and recording
+# ✅ GitHub App (cloudbees-oss/smart-tests-results-upload-action@v1) for results upload
+# ✅ Supports observation and production modes
+# ✅ Manual workflow dispatch to select mode and target
+# 📚 GitHub App: https://github.com/cloudbees-oss/smart-tests-results-upload-action
 # 📚 Project: https://cloudbees.atlassian.net/wiki/spaces/PRODUCT/pages/6135283723/Project+Running+observation+mode+against+historical+data
 # 📚 Documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
 
@@ -24,11 +26,31 @@ on:
       - 'requirements.txt'
       - 'requirements-robot.txt'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Smart Tests mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      target:
+        description: 'Optimization target (e.g., --target 50%)'
+        required: false
+        default: '--target 80%'
+        type: string
 
 jobs:
   robot-api-tests:
-    name: Robot Framework API Tests (GitHub App Verification)
+    name: Robot Framework API Tests (GitHub App)
     runs-on: ubuntu-latest
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      # Use observation mode unless manually triggered with production mode
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
+      # Use custom target if provided via workflow_dispatch, otherwise default to --target 80%
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 80%' }}
 
     steps:
     - name: Checkout code
@@ -42,16 +64,78 @@ jobs:
         python-version: '3.13.1'
         cache: 'pip'
 
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-robot.txt
+        pip3 install --no-cache-dir smart-tests-cli~=2.0
+
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite robot-api-github-app > session.txt
+        cat session.txt
+        echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
+        echo "Target: $TARGET_FLAG"
 
     - name: Initialize database
       run: |
         python -m app.db.init_db
         python -m app.db.seed_data
+
+    - name: Collect Robot Framework test names
+      run: |
+        # Run Robot in dry-run mode to generate test structure
+        mkdir -p /tmp/robot-dryrun
+        robot --dryrun --outputdir /tmp/robot-dryrun --xunit /tmp/robot-dryrun/junit.xml tests/robot/ || true
+
+        # Extract test names in pytest format for Smart Tests compatibility
+        if [ -f "/tmp/robot-dryrun/junit.xml" ]; then
+          python3 scripts/extract_robot_tests.py /tmp/robot-dryrun/junit.xml > test_list_robot.txt
+        else
+          echo "Dry-run failed, cannot proceed without test names"
+          exit 1
+        fi
+
+        echo "Collected $(wc -l < test_list_robot.txt) test names in pytest format"
+        head -10 test_list_robot.txt
+
+    - name: Create Smart Tests subset
+      shell: bash
+      run: |
+        # Use pytest profile for subset creation
+        set +e  # Temporarily disable exit on error
+        echo "Requesting subset from Smart Tests..."
+        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
+        EXIT_CODE=$?
+        set -e  # Re-enable exit on error
+
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "⚠️  Smart Tests subset command failed with exit code $EXIT_CODE"
+          echo "Error output:"
+          cat smart-tests-subset.txt
+          echo ""
+          echo "Falling back to ALL tests"
+          echo "ALL" > smart-tests-subset.txt
+        fi
+
+        echo "Subset selection result:"
+        cat smart-tests-subset.txt
+        echo "Number of tests in subset: $(wc -l < smart-tests-subset.txt)"
 
     - name: Start application and run Robot tests
       continue-on-error: true
@@ -70,24 +154,66 @@ jobs:
         }
         echo "Application is ready!"
 
-        # Run ALL Robot Framework tests to build historical data
+        # Run Robot Framework tests
         mkdir -p test-results
-        echo "Running all Robot Framework tests for historical data collection"
-        robot \
-          --outputdir test-results \
-          --output output.xml \
-          --log log.html \
-          --report report.html \
-          --xunit junit.xml \
-          --loglevel INFO \
-          tests/robot/ || true
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
+
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          SUBSET_COUNT=$(wc -l < smart-tests-subset.txt)
+          echo "Running Robot Framework subset: $SUBSET_COUNT tests"
+
+          # Convert pytest format to Robot test names
+          TEST_ARGS=""
+          while IFS= read -r pytest_name; do
+            robot_test=$(python3 scripts/pytest_to_robot.py <<< "$pytest_name")
+            TEST_ARGS="$TEST_ARGS --test \"$robot_test\""
+          done < smart-tests-subset.txt
+
+          echo "Running subset tests with Robot Framework"
+          echo "Sample test names: $(head -3 smart-tests-subset.txt | python3 scripts/pytest_to_robot.py | tr '\n' ', ')"
+          eval robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $TEST_ARGS \
+            tests/robot/ || true
+        else
+          echo "Running all Robot Framework tests (subset returned ALL)"
+          robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            tests/robot/ || true
+        fi
 
         # Cleanup
         kill $APP_PID 2>/dev/null || true
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
 
-    - name: Store Test Results for Smart Tests
+    - name: Record test results with Smart Tests (CLI)
+      if: always()
+      run: |
+        if [ -f test-results/junit.xml ]; then
+          echo "Transforming Robot Framework JUnit XML to pytest format..."
+          python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
+
+          echo "Recording test results to Smart Tests..."
+          smart-tests record tests pytest --session @session.txt test-results/junit-transformed.xml
+          echo "✅ Test results recorded to Smart Tests successfully!"
+        else
+          echo "❌ No JUnit results file found at test-results/junit.xml"
+          ls -la test-results/ || echo "test-results directory not found"
+          exit 1
+        fi
+
+    - name: Store Test Results for Smart Tests (GitHub App)
       if: always()
       uses: cloudbees-oss/smart-tests-results-upload-action@v1
 
