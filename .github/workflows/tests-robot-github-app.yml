@@ -205,12 +205,7 @@ jobs:
           python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
 
           echo "=== DEBUG: First 5 testcases in transformed XML ==="
-          python3 -c "
-import xml.etree.ElementTree as ET
-tree = ET.parse('test-results/junit-transformed.xml')
-for tc in list(tree.getroot().findall('.//testcase'))[:5]:
-    print(f'  classname={tc.get(\"classname\")}  name={tc.get(\"name\")}')
-"
+          python3 -c 'import xml.etree.ElementTree as ET; tree = ET.parse("test-results/junit-transformed.xml"); [print("  classname=" + (tc.get("classname") or "") + "  name=" + (tc.get("name") or "")) for tc in list(tree.getroot().findall(".//testcase"))[:5]]'
           echo "=== DEBUG: First 5 lines of subset ==="
           head -5 smart-tests-subset.txt || echo "no subset file"
 
