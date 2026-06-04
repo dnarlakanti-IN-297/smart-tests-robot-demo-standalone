@@ -77,7 +77,7 @@ jobs:
 
     - name: Record build with Smart Tests
       run: |
-        smart-tests record build --build ${{ github.run_id }} --source ${{ github.repository }}=${{ github.workspace }}
+        smart-tests record build --build ${{ github.run_id }} --source ${{ github.repository }}=${{ github.workspace }} --max-days 90
 
     - name: Record session with Smart Tests
       run: |
