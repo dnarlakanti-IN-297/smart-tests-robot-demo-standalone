@@ -1,4 +1,5 @@
 # Smart Tests Demo: Issue Tracker Application
+<!-- Updated: 2026-06-04 -->
 
 ![Tests](https://github.com/xgalanxhi/issues-tracker-app/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.13+-blue.svg)
