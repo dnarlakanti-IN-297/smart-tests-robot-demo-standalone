@@ -204,6 +204,16 @@ jobs:
           echo "Transforming Robot Framework JUnit XML to pytest format..."
           python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
 
+          echo "=== DEBUG: First 5 testcases in transformed XML ==="
+          python3 -c "
+import xml.etree.ElementTree as ET
+tree = ET.parse('test-results/junit-transformed.xml')
+for tc in list(tree.getroot().findall('.//testcase'))[:5]:
+    print(f'  classname={tc.get(\"classname\")}  name={tc.get(\"name\")}')
+"
+          echo "=== DEBUG: First 5 lines of subset ==="
+          head -5 smart-tests-subset.txt || echo "no subset file"
+
           echo "Recording test results to Smart Tests..."
           smart-tests record tests pytest --session @session.txt test-results/junit-transformed.xml
           echo "✅ Test results recorded to Smart Tests successfully!"
