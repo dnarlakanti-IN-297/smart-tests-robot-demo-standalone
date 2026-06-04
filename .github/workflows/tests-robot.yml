@@ -1,10 +1,10 @@
 name: Robot Framework Tests
 
 # Smart Tests Integration for Robot Framework:
-# ✅ Uses raw profile with JSON format (bypasses pytest limitations)
-# ✅ Test results recorded with custom format: file=path#testCase=name
-# ✅ Subset requests created and visible in CloudBees dashboard
-# ✅ Format: "file=tests/robot/api/auth.py#testCase=test_register"
+# ✅ Uses native Robot Framework profile (fixed in smart-tests-cli v2.11.1)
+# ✅ smart-tests subset robot with --dry-run-report
+# ✅ smart-tests record tests robot with output.xml
+# 📚 Documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
 
 on:
   push:
@@ -43,9 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
-      # Use observation mode unless manually triggered with production mode
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
-      # Use custom target if provided via workflow_dispatch, otherwise default to --target 80%
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 80%' }}
 
     steps:
@@ -71,7 +69,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-robot.txt
-        pip3 install --no-cache-dir smart-tests-cli~=2.0
+        pip3 install --no-cache-dir smart-tests-cli==2.11.1
 
     - name: Verify Smart Tests connectivity
       run: |
@@ -91,55 +89,35 @@ jobs:
         python -m app.db.init_db
         python -m app.db.seed_data
 
-    - name: Collect Robot Framework test names
-      run: |
-        # Run Robot in dry-run mode to generate test structure
-        mkdir -p /tmp/robot-dryrun
-        robot --dryrun --outputdir /tmp/robot-dryrun --xunit /tmp/robot-dryrun/junit.xml tests/robot/ || true
-
-        # Extract test names in pytest format for Smart Tests compatibility
-        if [ -f "/tmp/robot-dryrun/junit.xml" ]; then
-          python3 scripts/extract_robot_tests.py /tmp/robot-dryrun/junit.xml > test_list_robot.txt
-        else
-          echo "Dry-run failed, cannot proceed without test names"
-          exit 1
-        fi
-
-        echo "Collected $(wc -l < test_list_robot.txt) test names in pytest format"
-        head -10 test_list_robot.txt
-
     - name: Create Smart Tests subset
       shell: bash
       run: |
-        # Use pytest profile
-        set +e  # Temporarily disable exit on error
+        set +e
+        echo "Running Robot dry-run to collect test names..."
+        mkdir -p /tmp/robot-dryrun
+        robot --dryrun --outputdir /tmp/robot-dryrun tests/robot/ 2>/dev/null || true
+
         echo "Requesting subset from Smart Tests..."
-        cat test_list_robot.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>&1
+        smart-tests subset robot --session @session.txt $TARGET_FLAG --dry-run-report /tmp/robot-dryrun/output.xml > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
-        set -e  # Re-enable exit on error
+        set -e
 
         if [ $EXIT_CODE -ne 0 ]; then
-          echo "⚠️  Smart Tests subset command failed with exit code $EXIT_CODE"
-          echo "Error output:"
+          echo "⚠️  Smart Tests subset failed, falling back to ALL tests"
           cat smart-tests-subset.txt
-          echo ""
-          echo "Falling back to ALL tests"
           echo "ALL" > smart-tests-subset.txt
         fi
 
-        echo "Subset selection result:"
+        echo "Subset result:"
         cat smart-tests-subset.txt
-        echo "Number of tests in subset: $(wc -l < smart-tests-subset.txt)"
+        echo "Tests in subset: $(wc -l < smart-tests-subset.txt)"
 
     - name: Start application and run Robot tests
       continue-on-error: true
       run: |
-        # Start application in background
         DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         APP_PID=$!
-        echo "Started application with PID $APP_PID"
 
-        # Wait for application to be ready
         echo "Waiting for application to start..."
         timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
           echo "Application failed to start"
@@ -148,7 +126,6 @@ jobs:
         }
         echo "Application is ready!"
 
-        # Run Robot Framework tests
         mkdir -p test-results
         SUBSET_CONTENT=$(cat smart-tests-subset.txt)
 
@@ -156,16 +133,12 @@ jobs:
           SUBSET_COUNT=$(wc -l < smart-tests-subset.txt)
           echo "Running Robot Framework subset: $SUBSET_COUNT tests"
 
-          # Convert pytest format to Robot test names (just the test name, not full path)
-          # Example: tests.robot.api.auth::test_register_new_user -> Register New User
           TEST_ARGS=""
-          while IFS= read -r pytest_name; do
-            robot_test=$(python3 scripts/pytest_to_robot.py <<< "$pytest_name")
-            TEST_ARGS="$TEST_ARGS --test \"$robot_test\""
+          while IFS= read -r test_name; do
+            TEST_ARGS="$TEST_ARGS --test \"$test_name\""
           done < smart-tests-subset.txt
 
           echo "Running subset tests with Robot Framework"
-          echo "Sample test names: $(head -3 smart-tests-subset.txt | python3 scripts/pytest_to_robot.py | tr '\n' ', ')"
           eval robot \
             --outputdir test-results \
             --output output.xml \
@@ -176,7 +149,7 @@ jobs:
             $TEST_ARGS \
             tests/robot/ || true
         else
-          echo "Running all Robot Framework tests (subset returned ALL)"
+          echo "Running all Robot Framework tests"
           robot \
             --outputdir test-results \
             --output output.xml \
@@ -187,7 +160,6 @@ jobs:
             tests/robot/ || true
         fi
 
-        # Cleanup
         kill $APP_PID 2>/dev/null || true
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
@@ -195,15 +167,12 @@ jobs:
     - name: Record test results with Smart Tests
       if: always()
       run: |
-        if [ -f test-results/junit.xml ]; then
-          echo "Transforming Robot Framework JUnit XML to pytest format..."
-          python3 scripts/transform_robot_junit.py test-results/junit.xml test-results/junit-transformed.xml
-
+        if [ -f test-results/output.xml ]; then
           echo "Recording test results to Smart Tests..."
-          smart-tests record tests pytest --session @session.txt test-results/junit-transformed.xml
+          smart-tests record tests robot --session @session.txt test-results/output.xml
           echo "✅ Test results recorded to Smart Tests successfully!"
         else
-          echo "❌ No JUnit results file found at test-results/junit.xml"
+          echo "❌ No output.xml found"
           ls -la test-results/ || echo "test-results directory not found"
           exit 1
         fi
@@ -222,14 +191,14 @@ jobs:
       run: |
         if [ -f test-results/output.xml ]; then
           echo "=== Robot Framework Test Summary ==="
-          python -c "
-          import xml.etree.ElementTree as ET
-          tree = ET.parse('test-results/output.xml')
-          root = tree.getroot()
-          stats = root.find('.//statistics/total/stat')
-          if stats is not None:
-            print(f\"Total: {stats.get('pass')} passed, {stats.get('fail')} failed\")
-          " || echo "Could not parse test results"
+          python3 -c "
+import xml.etree.ElementTree as ET
+tree = ET.parse('test-results/output.xml')
+root = tree.getroot()
+stats = root.find('.//statistics/total/stat')
+if stats is not None:
+    print(f'Total: {stats.get(\"pass\")} passed, {stats.get(\"fail\")} failed')
+" || echo "Could not parse test results"
         else
           echo "No test results found"
         fi
