@@ -148,7 +148,7 @@ Learn about:
 **→ [TECHNICAL_REFERENCE.md - Section 5: GitHub Actions and CI/CD](./TECHNICAL_REFERENCE.md#5-github-actions-and-cicd)**
 
 GitHub Actions workflows:
-- **Tests Workflow**: Runs unit, integration, and E2E tests with Smart Tests
+- **Tests Workflow**: Runs unit, integration, and E2E tests with Smart Tests V2
 - **Apply Demo Patch Workflow**: Applies breaking changes to demonstrate CI behavior
 
 Both workflows fully documented with step-by-step breakdowns.
