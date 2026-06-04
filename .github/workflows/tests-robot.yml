@@ -79,7 +79,7 @@ jobs:
 
     - name: Record build with Smart Tests
       run: |
-        smart-tests record build --build ${{ github.run_id }} --commit ${{ github.repository }}=${{ github.sha }}
+        smart-tests record build --build ${{ github.run_id }}
 
     - name: Record session with Smart Tests
       run: |
