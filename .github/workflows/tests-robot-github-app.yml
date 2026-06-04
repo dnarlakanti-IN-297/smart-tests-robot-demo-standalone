@@ -134,15 +134,9 @@ jobs:
         SUBSET_CONTENT=$(cat smart-tests-subset.txt)
 
         if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
-          SUBSET_COUNT=$(wc -l < smart-tests-subset.txt)
-          echo "Running Robot Framework subset: $SUBSET_COUNT tests"
-
-          TEST_ARGS=""
-          while IFS= read -r test_name; do
-            TEST_ARGS="$TEST_ARGS --test \"$test_name\""
-          done < smart-tests-subset.txt
-
-          echo "Running subset tests with Robot Framework"
+          echo "Running Robot Framework subset"
+          echo "Subset args: $SUBSET_CONTENT"
+          # smart-tests subset robot outputs Robot CLI args directly (e.g. -s Api -t 'Test Name')
           eval robot \
             --outputdir test-results \
             --output output.xml \
@@ -150,7 +144,7 @@ jobs:
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            $TEST_ARGS \
+            $SUBSET_CONTENT \
             tests/robot/ || true
         else
           echo "Running all Robot Framework tests"
