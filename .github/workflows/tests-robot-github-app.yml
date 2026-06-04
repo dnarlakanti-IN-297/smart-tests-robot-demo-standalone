@@ -99,8 +99,10 @@ jobs:
         robot --dryrun --outputdir /tmp/robot-dryrun tests/robot/ 2>/dev/null || true
 
         if [ -f "/tmp/robot-dryrun/output.xml" ]; then
-          smart-tests subset robot --session @session.txt $TARGET_FLAG /tmp/robot-dryrun/output.xml > smart-tests-subset.txt 2>&1
+          # Redirect stderr to show status table in logs, stdout only has robot args
+          smart-tests subset robot --session @session.txt $TARGET_FLAG /tmp/robot-dryrun/output.xml > smart-tests-subset.txt 2>/tmp/subset-status.txt
           EXIT_CODE=$?
+          cat /tmp/subset-status.txt || true
         else
           echo "Dry-run failed"
           EXIT_CODE=1
