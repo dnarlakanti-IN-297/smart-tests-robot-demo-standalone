@@ -41,7 +41,7 @@ on:
 
 jobs:
   robot-api-tests:
-    name: Robot Framework API Tests (GitHub App)
+    name: Robot Framework API Tests (GitHub App - v2.11.1)
     runs-on: ubuntu-latest
     env:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
