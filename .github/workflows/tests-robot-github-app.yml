@@ -199,14 +199,7 @@ jobs:
       run: |
         if [ -f test-results/output.xml ]; then
           echo "=== Robot Framework Test Summary ==="
-          python3 -c "
-import xml.etree.ElementTree as ET
-tree = ET.parse('test-results/output.xml')
-root = tree.getroot()
-stats = root.find('.//statistics/total/stat')
-if stats is not None:
-    print(f'Total: {stats.get(\"pass\")} passed, {stats.get(\"fail\")} failed')
-" || echo "Could not parse test results"
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print(str(s.get("pass")) + " passed, " + str(s.get("fail")) + " failed") if s is not None else None' || echo "Could not parse test results"
         else
           echo "No test results found"
         fi
