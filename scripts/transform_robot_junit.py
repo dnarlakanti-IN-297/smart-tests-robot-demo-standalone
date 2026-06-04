@@ -10,14 +10,21 @@ import re
 
 def to_pytest_format(classname, test_name):
     """
-    Convert Robot Framework test to pytest file path format.
+    Convert Robot Framework test to pytest format matching Smart Tests internal ID.
+
+    Smart Tests stores test IDs as:
+      file=tests/robot/api/auth.py#class=tests.robot.api.auth#testcase=test_name
+
+    It derives 'file' from 'classname' by replacing dots with slashes and appending .py.
+    So JUnit XML classname must be the module path (dots), NOT the file path (slashes).
 
     Input:
-      classname: "Robot.Integration.Issue Lifecycle"
-      test_name: "Bug Fix Workflow With Type And Priority"
+      classname: "Robot.Api.Auth"
+      test_name: "Register New User Successfully"
 
     Output:
-      "tests/robot/integration/issue_lifecycle.py::test_bug_fix_workflow_with_type_and_priority"
+      classname: "tests.robot.api.auth"
+      name:      "test_register_new_user_successfully"
     """
     # Remove "Robot." prefix
     if classname.startswith("Robot."):
@@ -25,16 +32,15 @@ def to_pytest_format(classname, test_name):
     else:
         suite_path = classname
 
-    # Convert suite path to file path: "Integration.Issue Lifecycle" -> "tests/robot/integration/issue_lifecycle.py"
-    # Use slashes for file paths, convert to lowercase, replace spaces with underscores
+    # Convert suite path to module path with dots: "Api.Auth" -> "tests.robot.api.auth"
     suite_parts = suite_path.split(".")
-    file_parts = [re.sub(r'\s+', '_', part.lower()) for part in suite_parts]
-    file_path = "tests/robot/" + "/".join(file_parts) + ".py"
+    module_parts = [re.sub(r'\s+', '_', part.lower()) for part in suite_parts]
+    module_path = "tests.robot." + ".".join(module_parts)
 
-    # Convert test name to pytest format
+    # Convert test name to method format
     method_name = "test_" + re.sub(r'[^a-zA-Z0-9]+', '_', test_name).lower().strip('_')
 
-    return f"{file_path}::{method_name}"
+    return f"{module_path}::{method_name}"
 
 
 def from_pytest_format(pytest_name):
@@ -85,12 +91,13 @@ def transform_junit_xml(input_path, output_path):
         name = testcase.get('name', '')
 
         if classname and name:
-            # Convert to pytest format: tests/robot/api/auth.py::test_method
+            # Convert to pytest format: tests.robot.api.auth::test_method
             pytest_name = to_pytest_format(classname, name)
             parts = pytest_name.split("::")
             if len(parts) == 2:
-                # Set classname to file path and name to test method
-                testcase.set('classname', parts[0])  # tests/robot/api/auth.py
+                # Set classname to module path (dots) and name to test method
+                # Smart Tests derives file=tests/robot/api/auth.py from classname=tests.robot.api.auth
+                testcase.set('classname', parts[0])  # tests.robot.api.auth
                 testcase.set('name', parts[1])       # test_access_protected_endpoint_...
 
     # Write transformed XML (keeps nested structure)
