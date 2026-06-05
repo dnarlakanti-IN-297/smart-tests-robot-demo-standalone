@@ -75,9 +75,15 @@ jobs:
       run: |
         smart-tests verify || true
 
+    - name: Record commits with Smart Tests
+      run: |
+        # Pre-populate commit history so Smart Tests has context for predictions
+        # Required for new workspaces - without this, only the latest commit is available
+        smart-tests record commit --name ${{ github.repository }} --source ${{ github.workspace }} --max-days 90
+
     - name: Record build with Smart Tests
       run: |
-        smart-tests record build --build ${{ github.run_id }}
+        smart-tests record build --build ${{ github.run_id }} --source ${{ github.workspace }}
 
     - name: Record session with Smart Tests
       run: |
