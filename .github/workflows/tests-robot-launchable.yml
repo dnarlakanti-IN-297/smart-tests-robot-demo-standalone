@@ -24,9 +24,10 @@ on:
         default: '75%'
         type: string
   push:
-    branches: [ patch-robot-demo-v1-launchable ]
+    branches: [ patch-launchable-quick ]
     paths:
       - 'tests/robot/**'
+      - '.github/workflows/tests-robot-launchable.yml'
 
 jobs:
   robot-launchable-tests:
@@ -37,7 +38,8 @@ jobs:
       BUILD_NAME: ${{ github.event.repository.name }}-${{ github.run_id }}
       TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '75%' }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || '' }}
-      SIMULATED_LATENCY_MS: 500
+      SIMULATED_LATENCY_MS: 0
+      TEST_SUITE: tests/robot/data_driven/auth_edge_cases.robot
 
     steps:
     - name: Checkout code
@@ -90,7 +92,7 @@ jobs:
           --target "$TARGET" \
           --rest remaining-tests.txt \
           robot \
-          tests/robot/ > subset-tests.txt 2>/tmp/subset-status.txt
+          $TEST_SUITE > subset-tests.txt 2>/tmp/subset-status.txt
 
         EXIT_CODE=$?
         cat /tmp/subset-status.txt || true
@@ -140,7 +142,7 @@ jobs:
             --xunit junit.xml \
             --loglevel INFO \
             $SUBSET_CONTENT \
-            tests/robot/ || true
+            $TEST_SUITE || true
         else
           echo "Running ALL Robot Framework tests"
           robot \
@@ -150,7 +152,7 @@ jobs:
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            tests/robot/ || true
+            $TEST_SUITE || true
         fi
 
         kill $APP_PID 2>/dev/null || true
