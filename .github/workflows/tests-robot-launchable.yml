@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       LAUNCHABLE_TOKEN: ${{ secrets.LAUNCHABLE_TOKEN }}
-      BUILD_NAME: ${{ github.repository }}-${{ github.run_id }}
+      BUILD_NAME: ${{ github.event.repository.name }}-${{ github.run_id }}
       TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '75%' }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || '' }}
       SIMULATED_LATENCY_MS: 500
