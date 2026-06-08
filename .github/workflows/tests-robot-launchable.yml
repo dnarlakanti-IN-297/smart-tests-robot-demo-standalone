@@ -1,0 +1,188 @@
+name: Robot Framework Tests (Launchable)
+
+# Launchable v1 Integration for Robot Framework:
+# ✅ Uses Launchable CLI v1.124.2
+# ✅ launchable subset robot to get test subset
+# ✅ launchable record tests robot to upload results
+# ✅ Observation mode (default) builds history; production mode shows real savings
+# 📚 Documentation: https://help.launchableinc.com/getting-started/
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Launchable mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      target:
+        description: 'Optimization target percentage (e.g., 75%)'
+        required: false
+        default: '75%'
+        type: string
+  push:
+    branches: [ patch-robot-demo-v1-launchable ]
+    paths:
+      - 'tests/robot/**'
+
+jobs:
+  robot-launchable-tests:
+    name: Robot Framework API Tests (Launchable v1)
+    runs-on: ubuntu-latest
+    env:
+      LAUNCHABLE_TOKEN: ${{ secrets.LAUNCHABLE_TOKEN }}
+      BUILD_NAME: ${{ github.repository }}-${{ github.run_id }}
+      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '75%' }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || '' }}
+      SIMULATED_LATENCY_MS: 500
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-robot.txt
+        pip install launchable==1.124.2
+
+    - name: Verify Launchable connectivity
+      run: |
+        launchable verify || true
+
+    - name: Record build with Launchable
+      run: |
+        launchable record build --name "$BUILD_NAME" --max-days 30
+
+    - name: Record session with Launchable
+      run: |
+        launchable record session --build "$BUILD_NAME" $OBSERVATION_FLAG > session.txt
+        echo "Session ID: $(cat session.txt)"
+        echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
+        echo "Target: $TARGET"
+
+    - name: Get Launchable test subset
+      shell: bash
+      run: |
+        set +e
+        echo "Requesting subset from Launchable..."
+
+        launchable subset \
+          --session @session.txt \
+          --target "$TARGET" \
+          --rest remaining-tests.txt \
+          robot \
+          tests/robot/ > subset-tests.txt 2>/tmp/subset-status.txt
+
+        EXIT_CODE=$?
+        cat /tmp/subset-status.txt || true
+        set -e
+
+        if [ $EXIT_CODE -ne 0 ] || [ ! -s subset-tests.txt ]; then
+          echo "⚠️  Launchable subset unavailable (first run or no history), running ALL tests"
+          echo "ALL" > subset-tests.txt
+        fi
+
+        echo "=== Subset output ==="
+        cat subset-tests.txt
+        echo "=== Remaining tests ==="
+        cat remaining-tests.txt 2>/dev/null || echo "(none)"
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Start application and run Robot tests
+      continue-on-error: true
+      run: |
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        mkdir -p test-results
+
+        SUBSET_CONTENT=$(cat subset-tests.txt)
+
+        if [ -s subset-tests.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          echo "Running Launchable subset tests"
+          # launchable subset robot outputs --test "TestName" style args for robot CLI
+          eval robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $SUBSET_CONTENT \
+            tests/robot/ || true
+        else
+          echo "Running ALL Robot Framework tests"
+          robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            tests/robot/ || true
+        fi
+
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Record test results with Launchable
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "Recording test results to Launchable..."
+          launchable record tests --session @session.txt robot test-results/output.xml
+          echo "✅ Test results recorded to Launchable!"
+        else
+          echo "❌ No output.xml found"
+          ls -la test-results/ || echo "test-results directory not found"
+        fi
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Test Summary ==="
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print("Total: " + str(int(s.get("pass")) + int(s.get("fail"))) + " | Passed: " + str(s.get("pass")) + " | Failed: " + str(s.get("fail"))) if s is not None else None' || true
+        else
+          echo "No test results found"
+        fi
+
+    - name: Upload Launchable results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-launchable-results
+        path: test-results/
+        retention-days: 30
