@@ -45,6 +45,7 @@ jobs:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 80%' }}
+      SIMULATED_LATENCY_MS: 200
 
     steps:
     - name: Checkout code

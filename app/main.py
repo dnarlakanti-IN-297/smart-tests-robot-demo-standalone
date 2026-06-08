@@ -1,10 +1,15 @@
 """Main FastAPI application"""
 
-from fastapi import FastAPI
+import asyncio
+import os
+
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.routes import api_router, web_router
+
+_SIMULATED_LATENCY_MS = int(os.getenv("SIMULATED_LATENCY_MS", "0"))
 
 # Create FastAPI app
 app = FastAPI(
@@ -15,6 +20,14 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json",
 )
+
+# Simulates remote DB + network latency — set SIMULATED_LATENCY_MS env var to enable
+if _SIMULATED_LATENCY_MS > 0:
+    @app.middleware("http")
+    async def simulate_latency(request: Request, call_next):
+        if request.url.path != "/health":
+            await asyncio.sleep(_SIMULATED_LATENCY_MS / 1000)
+        return await call_next(request)
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
