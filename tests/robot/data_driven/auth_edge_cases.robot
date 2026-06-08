@@ -4,6 +4,7 @@ Documentation     Authentication Edge Case Tests
 ...               edge cases across many user variations.
 Library           RequestsLibrary
 Library           Collections
+Library           String
 Resource          ../resources/api_keywords.robot
 Resource          ../resources/variables.robot
 Resource          ../resources/setup_teardown.robot
@@ -72,7 +73,8 @@ Register Login And Access Protected Resources
     Response Field Should Equal    ${me}    username    ${suffix}
 
     # Create a project to confirm full auth access
-    ${proj}=    Create Project    Auth Project ${suffix}    AUTHPROJ    Auth edge case project for testing authentication and authorization validation flows    ${token}
+    ${proj_key}=    Convert To Upper Case    ${suffix}
+    ${proj}=    Create Project    Auth Project ${suffix}    ${proj_key}    Auth edge case project for testing authentication and authorization validation flows    ${token}
     Response Status Should Be    ${proj}    201
 
     # Access projects list
