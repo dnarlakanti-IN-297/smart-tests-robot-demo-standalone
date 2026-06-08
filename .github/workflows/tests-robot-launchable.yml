@@ -134,15 +134,16 @@ jobs:
         SUBSET_CONTENT=$(cat launchable-subset.txt 2>/dev/null)
 
         if [ -n "$SUBSET_CONTENT" ]; then
-          echo "Running Launchable subset: $SUBSET_CONTENT"
-          robot \
+          echo "Running Launchable subset"
+          # eval is required: subset output contains single-quoted args like -s 'Auth Edge Cases' -t 'Test Name'
+          eval robot \
             --outputdir test-results \
             --output output.xml \
             --log log.html \
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            $(cat launchable-subset.txt) \
+            "$SUBSET_CONTENT" \
             $TEST_SUITE || true
         else
           echo "Running ALL tests (no subset available)"
