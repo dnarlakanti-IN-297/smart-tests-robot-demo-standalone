@@ -68,7 +68,7 @@ jobs:
         kill $APP_PID 2>/dev/null || true
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
-        SIMULATED_LATENCY_MS: 200
+        SIMULATED_LATENCY_MS: 500
 
     - name: Display test summary
       if: always()
