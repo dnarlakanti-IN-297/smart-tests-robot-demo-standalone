@@ -2,10 +2,10 @@ name: Robot Framework Tests (Launchable)
 
 # Launchable v1 Integration for Robot Framework:
 # ✅ Uses Launchable CLI v1.124.2
-# ✅ launchable subset robot to get test subset
-# ✅ launchable record tests robot to upload results
-# ✅ Observation mode (default) builds history; production mode shows real savings
-# 📚 Documentation: https://help.launchableinc.com/getting-started/
+# ✅ subset robot: dry-run first → test_list.xml → launchable subset
+# ✅ record tests robot: passes output.xml after real run
+# ✅ eval used to handle single-quoted subset args correctly
+# 📚 Docs: https://help.launchableinc.com/features/predictive-test-selection/requesting-and-running-a-subset-of-tests/subsetting-with-the-launchable-cli/
 
 on:
   workflow_dispatch:
@@ -27,6 +27,7 @@ on:
     branches: [ patch-robot-demo-v1-launchable ]
     paths:
       - 'tests/robot/**'
+      - '.github/workflows/tests-robot-launchable.yml'
 
 jobs:
   robot-launchable-tests:
@@ -63,6 +64,7 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-robot.txt
         pip install launchable==1.124.2
+
     - name: Verify Launchable connectivity
       run: |
         launchable verify || true
@@ -78,31 +80,33 @@ jobs:
         echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
         echo "Target: $TARGET"
 
-    - name: Get Launchable test subset
+    - name: Dry-run to discover all tests
+      run: |
+        mkdir -p /tmp/launchable-dryrun
+        robot --dryrun -o /tmp/launchable-dryrun/test_list.xml tests/robot/ 2>/dev/null || true
+        echo "Dry-run test list generated:"
+        ls -lh /tmp/launchable-dryrun/
+
+    - name: Get Launchable subset
       shell: bash
       run: |
         set +e
+        SESSION_ID=$(cat session.txt)
         echo "Requesting subset from Launchable..."
 
-        SESSION_ID=$(cat session.txt)
         launchable subset \
           --session "$SESSION_ID" \
           --target "$TARGET" \
           --rest remaining-tests.txt \
           robot \
-          tests/robot/ > subset-tests.txt 2>/tmp/subset-status.txt
+          /tmp/launchable-dryrun/test_list.xml > launchable-subset.txt 2>/tmp/subset-status.txt
 
         EXIT_CODE=$?
         cat /tmp/subset-status.txt || true
         set -e
 
-        if [ $EXIT_CODE -ne 0 ] || [ ! -s subset-tests.txt ]; then
-          echo "⚠️  Launchable subset unavailable (first run or no history), running ALL tests"
-          echo "ALL" > subset-tests.txt
-        fi
-
         echo "=== Subset output ==="
-        cat subset-tests.txt
+        cat launchable-subset.txt || echo "(empty)"
         echo "=== Remaining tests ==="
         cat remaining-tests.txt 2>/dev/null || echo "(none)"
 
@@ -127,11 +131,11 @@ jobs:
 
         mkdir -p test-results
 
-        SUBSET_CONTENT=$(cat subset-tests.txt)
+        SUBSET_CONTENT=$(cat launchable-subset.txt 2>/dev/null)
 
-        if [ -s subset-tests.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
-          echo "Running Launchable subset tests"
-          # launchable subset robot outputs --test "TestName" style args for robot CLI
+        if [ -n "$SUBSET_CONTENT" ]; then
+          echo "Running Launchable subset"
+          # eval required: subset output has single-quoted args like -s 'Suite' -t 'Test Name'
           eval robot \
             --outputdir test-results \
             --output output.xml \
@@ -139,10 +143,10 @@ jobs:
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            $SUBSET_CONTENT \
+            "$SUBSET_CONTENT" \
             tests/robot/ || true
         else
-          echo "Running ALL Robot Framework tests"
+          echo "Running ALL Robot Framework tests (no subset available)"
           robot \
             --outputdir test-results \
             --output output.xml \
@@ -163,7 +167,7 @@ jobs:
         if [ -f test-results/output.xml ]; then
           echo "Recording test results to Launchable..."
           launchable record tests --session "$(cat session.txt)" robot test-results/output.xml
-          echo "✅ Test results recorded to Launchable!"
+          echo "✅ Test results recorded!"
         else
           echo "❌ No output.xml found"
           ls -la test-results/ || echo "test-results directory not found"
@@ -175,11 +179,9 @@ jobs:
         if [ -f test-results/output.xml ]; then
           echo "=== Robot Framework Test Summary ==="
           python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print("Total: " + str(int(s.get("pass")) + int(s.get("fail"))) + " | Passed: " + str(s.get("pass")) + " | Failed: " + str(s.get("fail"))) if s is not None else None' || true
-        else
-          echo "No test results found"
         fi
 
-    - name: Upload Launchable results
+    - name: Upload results
       if: always()
       uses: actions/upload-artifact@v4
       with:
