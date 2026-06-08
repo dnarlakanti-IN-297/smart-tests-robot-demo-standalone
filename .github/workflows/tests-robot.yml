@@ -27,10 +27,10 @@ on:
         description: 'Smart Tests mode'
         required: true
         type: choice
-        default: 'observation'
+        default: 'production'
         options:
-          - observation
           - production
+          - observation
       target:
         description: 'Optimization target (e.g., --target 50%)'
         required: false
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
-      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
       SIMULATED_LATENCY_MS: 500
 
