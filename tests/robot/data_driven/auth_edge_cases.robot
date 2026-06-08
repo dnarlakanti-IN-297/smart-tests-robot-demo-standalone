@@ -72,7 +72,7 @@ Register Login And Access Protected Resources
     Response Field Should Equal    ${me}    username    ${suffix}
 
     # Create a project to confirm full auth access
-    ${proj}=    Create Project    Auth Project ${suffix}    A${suffix}    Auth edge case project for validation    ${token}
+    ${proj}=    Create Project    Auth Project ${suffix}    AUTHPROJ    Auth edge case project for testing authentication and authorization validation flows    ${token}
     Response Status Should Be    ${proj}    201
 
     # Access projects list
