@@ -63,7 +63,6 @@ jobs:
         pip install -r requirements.txt
         pip install -r requirements-robot.txt
         pip install launchable==1.124.2
-
     - name: Verify Launchable connectivity
       run: |
         launchable verify || true
@@ -85,8 +84,9 @@ jobs:
         set +e
         echo "Requesting subset from Launchable..."
 
+        SESSION_ID=$(cat session.txt)
         launchable subset \
-          --session @session.txt \
+          --session "$SESSION_ID" \
           --target "$TARGET" \
           --rest remaining-tests.txt \
           robot \
@@ -162,7 +162,7 @@ jobs:
       run: |
         if [ -f test-results/output.xml ]; then
           echo "Recording test results to Launchable..."
-          launchable record tests --session @session.txt robot test-results/output.xml
+          launchable record tests --session "$(cat session.txt)" robot test-results/output.xml
           echo "✅ Test results recorded to Launchable!"
         else
           echo "❌ No output.xml found"
