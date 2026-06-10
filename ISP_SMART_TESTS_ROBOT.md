@@ -211,15 +211,19 @@ The repository includes three demo branches — full-suite and quick variants:
 |---|---|
 | **GitHub account** | To fork the demo repository |
 | **GitHub Actions enabled** | Ability to run workflows in your fork |
+| **Two CloudBees Unify workspaces** | One with PTSv1 enabled, one with PTSv2 enabled — required to run both versions of the demo. A single workspace is enabled for only one version at a time. |
 | **Time commitment** | 30-60 minutes depending on version |
+
+> **Note — Two workspaces required for the full demo:** PTSv1 and PTSv2 cannot be enabled on the same workspace simultaneously. To demonstrate both versions side by side, you need two separate workspaces (or two separate orgs/suborgs in CloudBees Unify), each enabled for the respective version. Create one API token per workspace and add both to GitHub secrets: `PTSv1_TOKEN` from the PTSv1-enabled workspace, `PTSv2_TOKEN` from the PTSv2-enabled workspace.
+>
+> If you only have one workspace (one version enabled), you can still follow this guide — just use the branch and workflow that match your enabled version.
 
 ### Parameterized Values
 
 | Placeholder | Description | Where to Find |
 |---|---|---|
-| `<YOUR_TOKEN>` | One CloudBees API token, created from the org/workspace where your version is enabled. PTSv1 token routes to the ML engine; PTSv2 token routes to OpenAI. | CloudBees UI: Smart Tests > Settings > Create a Workspace API Key |
-
-> **Note:** You only need one token. Create it in the org/workspace that has your version enabled (PTSv1 or PTSv2). Add it to GitHub secrets as `PTSv1_TOKEN` (for PTSv1) or `PTSv2_TOKEN` (for PTSv2).
+| `<YOUR_PTSv1_TOKEN>` | CloudBees API token from your PTSv1-enabled workspace | CloudBees UI: Smart Tests > Settings > Create a Workspace API Key (on the PTSv1 workspace) |
+| `<YOUR_PTSv2_TOKEN>` | CloudBees API token from your PTSv2-enabled workspace | CloudBees UI: Smart Tests > Settings > Create a Workspace API Key (on the PTSv2 workspace) |
 
 ---
 
