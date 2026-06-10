@@ -21,7 +21,7 @@
 | Simulated latency | 0ms | 0ms |
 | Run time | ~1-2 minutes | ~1-2 minutes |
 | GitHub secret | `PTSv1_TOKEN` | `PTSv2_TOKEN` |
-| Workflow | `tests-robot-smarttests-pts-v1.yml` | `tests-robot-smarttests-pts-v2.yml` |
+| Workflow | `tests-robot-smarttests-pts-v1-quick.yml` | `tests-robot-smarttests-pts-v2-quick.yml` |
 | Predictions | After ~5-7 runs | From first run |
 
 ---
