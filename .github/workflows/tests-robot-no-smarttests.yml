@@ -6,7 +6,7 @@ name: Robot Framework Tests (No Smart Tests - Baseline)
 on:
   workflow_dispatch:
   push:
-    branches: [ main, patch-robot-demo ]
+    branches: [ main, patch-robot-demo-quick ]
     paths:
       - 'tests/robot/**'
 
