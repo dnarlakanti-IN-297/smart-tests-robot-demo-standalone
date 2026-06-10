@@ -307,11 +307,11 @@ The demo workflows are pre-configured to trigger on these branches. You can also
    - Branch: your chosen branch from the table above
 5. Click **Run workflow**
 
-Wait for the workflow to complete (~31 minutes with 500ms simulated latency).
+Wait for the workflow to complete (~31 minutes on full branches with 500ms latency, ~1-2 minutes on `patch-robot-demo-quick`).
 
 > **Note — What just happened:**
 >
-> This established your baseline — a full test run with all 451 tests and no Smart Tests optimization. This is your reference runtime. Every subsequent Smart Tests run will be compared against this number.
+> This established your baseline — all tests in scope with no Smart Tests optimization. This is your reference runtime. Every subsequent Smart Tests run will be compared against this number.
 
 #### Run Tests with Smart Tests (Observation Mode)
 
@@ -452,7 +452,7 @@ Smart Tests offers three types of optimization targets, each suited for differen
 > **Tip — What to observe:**
 >
 > **Observation mode:**
-> - All 451 tests run every time
+> - All tests in scope run every time (451 on full branches, 40 on quick)
 > - Predictions are created but not acted upon
 > - Zero risk — validates accuracy
 > - Time savings are projected, not realized
@@ -485,7 +485,7 @@ You've completed:
 
 ## Understanding the CI Integration
 
-Both `tests-robot-smarttests-pts-v2.yml` (PTSv2) and `tests-robot-smarttests-pts-v1.yml` (PTSv1) follow the same seven-step pattern using `smart-tests-cli==2.11.2`. Open either file in the repository to see the complete integration.
+All four Smart Tests workflows (`tests-robot-smarttests-pts-v2.yml`, `tests-robot-smarttests-pts-v1.yml`, `tests-robot-smarttests-pts-v2-quick.yml`, `tests-robot-smarttests-pts-v1-quick.yml`) follow the same seven-step pattern using `smart-tests-cli==2.11.2`. Open any file in the repository to see the complete integration.
 
 ### The Seven-Step Integration Pattern
 
@@ -1030,6 +1030,6 @@ Projected Savings:
 - Demo repository: https://github.com/cloudbees-ps/smart-tests-robot-demo
 - PTSv2 demo branch: `patch-robot-demo-ptsv2` — workflow: `tests-robot-smarttests-pts-v2.yml`
 - PTSv1 demo branch: `patch-robot-demo-ptsv1` — workflow: `tests-robot-smarttests-pts-v1.yml`
-- PTSv1 quick branch (40 tests, 0ms latency): `patch-robot-demo-quick` — workflows: `tests-robot-smarttests-pts-v1-quick.yml` / `tests-robot-smarttests-pts-v2-quick.yml`
+- Quick branch (40 tests, 0ms latency, both PTSv1 and PTSv2): `patch-robot-demo-quick` — workflows: `tests-robot-smarttests-pts-v1-quick.yml` / `tests-robot-smarttests-pts-v2-quick.yml`
 - Baseline workflow (no Smart Tests): `tests-robot-no-smarttests.yml`
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
