@@ -165,7 +165,7 @@ This guide teaches CloudBees Smart Tests predictive test selection using a Robot
 
 **Demonstration Repository:** https://github.com/cloudbees-ps/smart-tests-robot-demo
 
-The repository includes two demo branches, one for each version:
+The repository includes three demo branches — full-suite and quick variants:
 
 | Version | Branch | Workflow | Tests | Latency |
 |---|---|---|---|---|
@@ -333,9 +333,9 @@ Wait for the workflow to complete.
 > 1. **Record commit history:** `smart-tests record commit` pre-populates 90 days of git history so the prediction engine understands your codebase evolution
 > 2. **Record build:** `smart-tests record build` registers this CI run in CloudBees
 > 3. **Record session:** `smart-tests record session --observation` creates a test session and writes the session ID to `session.txt` automatically via the `> session.txt` redirect
-> 4. **Dry-run test discovery:** `robot --dryrun --outputdir /tmp/robot-dryrun` enumerates all 451 tests and writes the test list to `/tmp/robot-dryrun/output.xml`
+> 4. **Dry-run test discovery:** `robot --dryrun --outputdir /tmp/robot-dryrun` enumerates all tests in scope (451 on full branches, 40 on quick) and writes the test list to `/tmp/robot-dryrun/output.xml`
 > 5. **Generate subset:** `smart-tests subset robot --session @session.txt ... /tmp/robot-dryrun/output.xml` analyzes commits and predicts which tests are affected; output is Robot Framework CLI arguments
-> 6. **Run ALL tests:** In observation mode, all 451 tests execute even if a subset was returned; results are written to `test-results/output.xml` automatically by Robot Framework
+> 6. **Run ALL tests:** In observation mode, all tests in scope execute even if a subset was returned; results are written to `test-results/output.xml` automatically by Robot Framework
 > 7. **Record results:** `smart-tests record tests robot --session @session.txt test-results/output.xml` uploads results to CloudBees
 >
 > **PTSv2:** Predictions appear from the first run — the AI model analyzes the code change directly.
@@ -348,11 +348,18 @@ Wait for the workflow to complete.
 2. Navigate to **Smart Tests > Sessions**
 3. Find the sessions for your recent runs
 
-**PTSv2 — from the first run:**
+**PTSv2 full — from the first run (`patch-robot-demo-ptsv2`):**
 ```
 Session status    : Observation mode
 Tests executed    : 451
 Projected subset  : ~340 tests at 75% target
+```
+
+**PTSv2 quick — from the first run (`patch-robot-demo-quick`):**
+```
+Session status    : Observation mode
+Tests executed    : 40
+Projected subset  : ~30 tests at 75% target
 ```
 
 **PTSv1 — during warm-up (first 3-5 runs on `patch-robot-demo-quick`):**
