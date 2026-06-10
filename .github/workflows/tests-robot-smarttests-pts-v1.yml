@@ -1,7 +1,7 @@
 name: Robot Framework Tests (PTSv1)
 
 # Smart Tests CLI Integration for Robot Framework (PTS v1 branch):
-# ✅ Uses smart-tests-cli==2.11.2 (replaces launchable CLI)
+# ✅ Uses smart-tests-cli==2.11.2 — same CLI as PTSv2, token determines engine
 # ✅ smart-tests subset robot with --dry-run-report
 # ✅ smart-tests record tests robot with output.xml
 # ✅ eval used to handle single-quoted subset args correctly
@@ -24,17 +24,17 @@ on:
         default: '--target 75%'
         type: string
   push:
-    branches: [ patch-robot-demo-v1-launchable ]
+    branches: [ patch-robot-demo-ptsv1 ]
     paths:
       - 'tests/robot/**'
-      - '.github/workflows/tests-robot-launchable.yml'
+      - '.github/workflows/tests-robot-smarttests-pts-v1.yml'
 
 jobs:
-  robot-launchable-tests:
+  robot-ptsv1-tests:
     name: Robot Framework API Tests (Smart Tests CLI)
     runs-on: ubuntu-latest
     env:
-      SMART_TESTS_TOKEN: ${{ secrets.LAUNCHABLE_TOKEN }}
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
       SIMULATED_LATENCY_MS: 500
@@ -188,6 +188,6 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: robot-launchable-results
+        name: robot-ptsv1-results
         path: test-results/
         retention-days: 30

@@ -26,8 +26,8 @@ Demo repository for **CloudBees Smart Tests** predictive test selection with Rob
 | Branch | Version | Tests | Latency | Workflow |
 |---|---|---|---|---|
 | `patch-robot-demo-ptsv2` | PTSv2 (AI-based) | 451 | 500ms simulated | `tests-robot-smarttests-pts-v2.yml` |
-| `patch-robot-demo-ptsv1` | PTSv1 (ML-based) | 451 | 500ms simulated | `tests-robot-launchable-pts-v1.yml` |
-| `patch-robot-demo-quick` | PTSv1 quick debug | 40 | 0ms | `tests-robot-launchable-pts-v1.yml` |
+| `patch-robot-demo-ptsv1` | PTSv1 (ML-based) | 451 | 500ms simulated | `tests-robot-smarttests-pts-v1.yml` |
+| `patch-robot-demo-quick` | PTSv1 quick debug | 40 | 0ms | `tests-robot-smarttests-pts-v1.yml` |
 
 Use `patch-robot-demo-quick` during initial PTSv1 setup — 40 tests with no latency gives fast feedback while warming up the ML model.
 
@@ -47,7 +47,7 @@ You need one token, created from the org/workspace where your version is enabled
 | Your org version | Secret name | Token source |
 |---|---|---|
 | PTSv2 | `SMART_TESTS_TOKEN` | PTSv2-enabled org/workspace |
-| PTSv1 | `LAUNCHABLE_TOKEN` | PTSv1-enabled org/workspace |
+| PTSv1 | `SMART_TESTS_TOKEN` | PTSv1-enabled org/workspace |
 
 Go to **Settings > Secrets and variables > Actions > New repository secret**.
 
@@ -121,7 +121,7 @@ tests/robot/
 |---|---|---|
 | `tests-robot-smarttests-pts-v2.yml` | `patch-robot-demo-ptsv2` | PTSv2 Smart Tests — 451 tests, 500ms latency |
 | `tests-robot-smarttests-pts-v2-quick.yml` | `patch-robot-demo-quick` | PTSv2 Smart Tests — 40 tests, 0ms latency |
-| `tests-robot-launchable-pts-v1.yml` | `patch-robot-demo-ptsv1`, `patch-robot-demo-quick` | PTSv1 Smart Tests integration |
+| `tests-robot-smarttests-pts-v1.yml` | `patch-robot-demo-ptsv1`, `patch-robot-demo-quick` | PTSv1 Smart Tests integration |
 | `tests-robot-no-smarttests.yml` | Manual / any branch | Baseline — full suite, no Smart Tests |
 
 Both Smart Tests workflows use the same seven-step pattern:
