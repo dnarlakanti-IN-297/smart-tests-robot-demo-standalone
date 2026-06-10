@@ -389,7 +389,7 @@ Remainder         : 10 testcases
 
 ### Experiment with Workflow Options
 
-Both workflows accept the same two input parameters:
+All four Smart Tests workflows accept the same two input parameters:
 
 | Parameter | Options | What It Controls |
 |---|---|---|
