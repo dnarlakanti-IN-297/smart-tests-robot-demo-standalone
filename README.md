@@ -20,7 +20,7 @@
 | Tests | 40 (`auth_edge_cases.robot`) | 40 (`auth_edge_cases.robot`) |
 | Simulated latency | 0ms | 0ms |
 | Run time | ~1-2 minutes | ~1-2 minutes |
-| GitHub secret | `SMART_TESTS_TOKEN` | `SMART_TESTS_TOKEN` |
+| GitHub secret | `PTSv2_TOKEN` | `SMART_TESTS_TOKEN` |
 | Workflow | `tests-robot-smarttests-pts-v1.yml` | `tests-robot-smarttests-pts-v2-quick.yml` |
 | Predictions | After ~5-7 runs | From first run |
 
@@ -39,7 +39,7 @@ Add only the secret that matches your org's enabled version:
 
 | Secret name | Value | For version |
 |---|---|---|
-| `SMART_TESTS_TOKEN` | Token from your org/workspace in CloudBees Unify | PTSv1 and PTSv2 |
+| `PTSv1_TOKEN` or `PTSv2_TOKEN` | Token from your org/workspace in CloudBees Unify | PTSv1 / PTSv2 |
 
 ### 3. Run the appropriate workflow
 
