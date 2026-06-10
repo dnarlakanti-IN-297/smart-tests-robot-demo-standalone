@@ -46,8 +46,8 @@ You need one token, created from the org/workspace where your version is enabled
 
 | Your org version | Secret name | Token source |
 |---|---|---|
-| PTSv2 | `SMART_TESTS_TOKEN` | PTSv2-enabled org/workspace |
-| PTSv1 | `SMART_TESTS_TOKEN` | PTSv1-enabled org/workspace |
+| PTSv2 | `PTSv2_TOKEN` | PTSv2-enabled org/workspace |
+| PTSv1 | `PTSv1_TOKEN` | PTSv1-enabled org/workspace |
 
 Go to **Settings > Secrets and variables > Actions > New repository secret**.
 
