@@ -163,7 +163,7 @@ Robot Framework is an officially supported Smart Tests framework.
 
 This guide teaches CloudBees Smart Tests predictive test selection using a Robot Framework application as the implementation pattern. The concepts and integration patterns apply to any project using Robot Framework for testing, regardless of whether your organization uses PTSv1 or PTSv2.
 
-**Demonstration Repository:** https://github.com/anuddeeph2/issues-tracker-app
+**Demonstration Repository:** https://github.com/cloudbees-ps/smart-tests-robot-demo.git
 
 The repository includes two demo branches, one for each version:
 
@@ -1015,7 +1015,7 @@ Projected Savings:
 
 ## Additional Resources
 
-- Demo repository: https://github.com/anuddeeph2/issues-tracker-app
+- Demo repository: https://github.com/cloudbees-ps/smart-tests-robot-demo.git
 - PTSv2 demo branch: `patch-robot-demo` — workflow: `tests-robot.yml`
 - PTSv1 demo branch: `patch-robot-demo-v1-launchable` — workflow: `tests-robot-launchable.yml`
 - PTSv1 quick debug branch (40 tests, 0ms latency): `patch-launchable-quick`
