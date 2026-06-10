@@ -171,7 +171,8 @@ The repository includes two demo branches, one for each version:
 |---|---|---|---|---|
 | PTSv2 (AI-based) | `patch-robot-demo-ptsv2` | `tests-robot-smarttests-pts-v2.yml` | 451 | 500ms simulated |
 | PTSv1 (ML-based) | `patch-robot-demo-ptsv1` | `tests-robot-smarttests-pts-v1.yml` | 451 | 500ms simulated |
-| PTSv1 quick debug | `patch-robot-demo-quick` | `tests-robot-smarttests-pts-v1.yml` | 40 | 0ms |
+| PTSv1 quick | `patch-robot-demo-quick` | `tests-robot-smarttests-pts-v1.yml` | 40 | 0ms |
+| PTSv2 quick | `patch-robot-demo-quick` | `tests-robot-smarttests-pts-v2.yml` | 40 | 0ms |
 
 **Why the Demo Has Simulated Latency?** The demo application includes 500ms of simulated API latency per request, bringing the full 451-test suite to approximately 31 minutes. This simulates a realistic enterprise test suite.
 
@@ -242,8 +243,10 @@ The repository includes two demo branches, one for each version:
 3. If prompted, click "I understand my workflows, go ahead and enable them"
 
 **Workflows Available:**
-- **Robot Framework Tests:** PTSv2 demo — `patch-robot-demo-ptsv2` branch
-- **Robot Framework Tests (PTSv1):** PTSv1 demo — `patch-robot-demo-ptsv1` branch
+- **Robot Framework Tests (PTSv2):** PTSv2 full suite — `patch-robot-demo-ptsv2` branch (451 tests, 500ms latency)
+- **Robot Framework Tests (PTSv1):** PTSv1 full suite — `patch-robot-demo-ptsv1` branch (451 tests, 500ms latency)
+- **Robot Framework Tests (Quick - PTSv2):** PTSv2 fast demo — `patch-robot-demo-quick` branch (40 tests, 0ms)
+- **Robot Framework Tests (Quick - PTSv1):** PTSv1 warm-up — `patch-robot-demo-quick` branch (40 tests, 0ms)
 - **Robot Framework Tests (No Smart Tests - Baseline):** Full suite without Smart Tests, for comparison
 
 #### Configure Smart Tests Token
@@ -288,9 +291,10 @@ Use the branch that matches your org's enabled version:
 
 | Your org version | Branch to use | Workflow to use |
 |---|---|---|
-| PTSv2 | `patch-robot-demo-ptsv2` | Robot Framework Tests |
+| PTSv2 | `patch-robot-demo-ptsv2` | Robot Framework Tests (PTSv2) |
 | PTSv1 | `patch-robot-demo-ptsv1` | Robot Framework Tests (PTSv1) |
-| PTSv1 (faster iteration) | `patch-robot-demo-quick` | Robot Framework Tests (PTSv1) |
+| PTSv1 quick (40 tests, 0ms) | `patch-robot-demo-quick` | Robot Framework Tests (Quick - PTSv1) |
+| PTSv2 quick (40 tests, 0ms) | `patch-robot-demo-quick` | Robot Framework Tests (Quick - PTSv2) |
 
 The demo workflows are pre-configured to trigger on these branches. You can also create your own branch and update the workflow trigger.
 
@@ -322,7 +326,7 @@ Wait for the workflow to complete (~31 minutes with 500ms simulated latency).
 
 Wait for the workflow to complete.
 
-> **PTSv1 only — Repeat this step 5-7 times before expecting predictions.** PTSv1 needs a history of test results to train its ML model. To generate varied commit diffs, make a small change to any source file (e.g., add a blank line to `app/main.py`), commit it, and push to `patch-robot-demo-ptsv1`. Each push triggers the workflow automatically. Alternatively, use the **Run workflow** button to trigger runs manually — but varied commits produce better predictions.
+> **PTSv1 only — Repeat this step 5-7 times before expecting predictions.** PTSv1 needs a history of test results to train its ML model. Use `patch-robot-demo-quick` (40 tests, 0ms) to build history faster — each run takes ~1-2 minutes instead of ~31 minutes. To generate varied commit diffs, make a small change to any source file (e.g., add a blank line to `app/main.py`), commit it, and push. Each push triggers the workflow automatically. Alternatively, use the **Run workflow** button to trigger runs manually — but varied commits produce better predictions.
 
 > **Note — What Smart Tests is doing behind the scenes:**
 >
@@ -351,17 +355,18 @@ Tests executed    : 451
 Projected subset  : ~340 tests at 75% target
 ```
 
-**PTSv1 — during warm-up (first 3-5 runs):**
+**PTSv1 — during warm-up (first 3-5 runs on `patch-robot-demo-quick`):**
 ```
 Session status    : Observation mode
-Tests executed    : 451
+Tests executed    : 40
 Subset            : (none — model building history)
 Remainder         : (none)
 ```
 
-**PTSv1 — after warm-up (6+ runs on patch-robot-demo-quick, actual result):**
+**PTSv1 — after warm-up (6+ runs on `patch-robot-demo-quick`, actual result):**
 ```
 Session status    : Session passed
+Tests executed    : 40
 Subset            : 30 testcases
 Remainder         : 10 testcases
 ```
@@ -473,9 +478,9 @@ You've completed:
 
 ## Understanding the CI Integration
 
-Both `tests-robot-smarttests-pts-v2.yml` (PTSv2) and `tests-robot-smarttests-pts-v1.yml` (PTSv1) follow the same six-step pattern using `smart-tests-cli==2.11.2`. Open either file in the repository to see the complete integration.
+Both `tests-robot-smarttests-pts-v2.yml` (PTSv2) and `tests-robot-smarttests-pts-v1.yml` (PTSv1) follow the same seven-step pattern using `smart-tests-cli==2.11.2`. Open either file in the repository to see the complete integration.
 
-### The Six-Step Integration Pattern
+### The Seven-Step Integration Pattern
 
 | Step | Command | Purpose |
 |---|---|---|
@@ -519,7 +524,7 @@ smart-tests record session \
   --test-suite robot-api > session.txt
 ```
 
-Creates a test session in CloudBees. The `$OBSERVATION_FLAG` is `--observation` in observation mode and empty in production mode. The session ID is written to `session.txt` automatically via the `> session.txt` redirect. All subsequent steps reference this file as `@session.txt`.
+Creates a test session in CloudBees. The `$OBSERVATION_FLAG` is `--observation` in observation mode and a single space `' '` in production mode (GitHub Actions ternary requires a non-empty value). The session ID is written to `session.txt` automatically via the `> session.txt` redirect. All subsequent steps reference this file as `@session.txt`.
 
 **4. Collect Tests (`robot --dryrun`)**
 
@@ -774,9 +779,9 @@ Production Mode (after validation):
    - [ ] Only after switching to production mode
 
 4. **Which CLI is used for both PTSv1 and PTSv2?**
-   - [ ] A different CLI per version — `smart-tests-cli==2.11.2` for both PTSv1 and PTSv2
-   - [x] `smart-tests-cli==2.11.2` for both
-   - [ ] A different CLI per version
+   - [ ] A different CLI per version — `smart-tests-cli` for PTSv2, `launchable` for PTSv1
+   - [x] `smart-tests-cli==2.11.2` for both — the token determines which engine runs
+   - [ ] PTSv2 uses a REST API directly, no CLI needed
    - [ ] No CLI is needed
 
 5. **What must you pass to `smart-tests subset robot`?**
