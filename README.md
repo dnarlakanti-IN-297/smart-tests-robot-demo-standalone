@@ -25,9 +25,9 @@ Demo repository for **CloudBees Smart Tests** predictive test selection with Rob
 
 | Branch | Version | Tests | Latency | Workflow |
 |---|---|---|---|---|
-| `patch-robot-demo` | PTSv2 (AI-based) | 451 | 500ms simulated | `tests-robot.yml` |
-| `patch-robot-demo-v1-launchable` | PTSv1 (ML-based) | 451 | 500ms simulated | `tests-robot-launchable.yml` |
-| `patch-launchable-quick` | PTSv1 quick debug | 40 | 0ms | `tests-robot-launchable.yml` |
+| `patch-robot-demo` | PTSv2 (AI-based) | 451 | 500ms simulated | `tests-robot-smarttests-pts-v2.yml` |
+| `patch-robot-demo-v1-launchable` | PTSv1 (ML-based) | 451 | 500ms simulated | `tests-robot-launchable-pts-v1.yml` |
+| `patch-launchable-quick` | PTSv1 quick debug | 40 | 0ms | `tests-robot-launchable-pts-v1.yml` |
 
 Use `patch-launchable-quick` during initial PTSv1 setup — 40 tests with no latency gives fast feedback while warming up the ML model.
 
@@ -119,8 +119,8 @@ tests/robot/
 
 | Workflow | Trigger | Purpose |
 |---|---|---|
-| `tests-robot.yml` | `patch-robot-demo` branch | PTSv2 Smart Tests integration |
-| `tests-robot-launchable.yml` | `patch-robot-demo-v1-launchable`, `patch-launchable-quick` | PTSv1 Smart Tests integration |
+| `tests-robot-smarttests-pts-v2.yml` | `patch-robot-demo` branch | PTSv2 Smart Tests integration |
+| `tests-robot-launchable-pts-v1.yml` | `patch-robot-demo-v1-launchable`, `patch-launchable-quick` | PTSv1 Smart Tests integration |
 | `tests-robot-no-smarttests.yml` | Manual / any branch | Baseline — full suite, no Smart Tests |
 
 Both Smart Tests workflows use the same seven-step pattern:
