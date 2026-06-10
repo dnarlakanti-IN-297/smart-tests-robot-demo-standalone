@@ -88,7 +88,7 @@ Fork this repository to your GitHub account using the "Fork" button at the top r
 1. Go to your forked repository settings
 2. Navigate to **Settings** → **Secrets and variables** → **Actions**
 3. Click **"New repository secret"**
-4. Name: `SMART_TESTS_TOKEN`
+4. Name: `PTSv2_TOKEN` (for PTSv2) or `PTSv1_TOKEN` (for PTSv1)
 5. Value: Paste your CloudBees API token
 6. Click **"Add secret"**
 
@@ -224,7 +224,7 @@ To start fresh with a new experiment:
 - Check that you're running on a `patch-*` branch for Apply CI Demo Patch
 
 ### No results in CloudBees?
-- Verify `SMART_TESTS_TOKEN` secret is set correctly
+- Verify `PTSv2_TOKEN` (or `PTSv1_TOKEN`) secret is set correctly
 - Check workflow logs for Smart Tests CLI output
 - Ensure your CloudBees account is active
 - **Verify PTSv2 is enabled**: Send your organization/sub-organization ID to #team-smart-tests-se Slack channel
