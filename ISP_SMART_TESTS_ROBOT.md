@@ -171,8 +171,8 @@ The repository includes three demo branches — full-suite and quick variants:
 |---|---|---|---|---|
 | PTSv2 (AI-based) | `patch-robot-demo-ptsv2` | `tests-robot-smarttests-pts-v2.yml` | 451 | 500ms simulated |
 | PTSv1 (ML-based) | `patch-robot-demo-ptsv1` | `tests-robot-smarttests-pts-v1.yml` | 451 | 500ms simulated |
-| PTSv1 quick | `patch-robot-demo-quick` | `tests-robot-smarttests-pts-v1.yml` | 40 | 0ms |
-| PTSv2 quick | `patch-robot-demo-quick` | `tests-robot-smarttests-pts-v2.yml` | 40 | 0ms |
+| PTSv1 quick | `patch-robot-demo-quick` | `tests-robot-smarttests-pts-v1-quick.yml` | 40 | 0ms |
+| PTSv2 quick | `patch-robot-demo-quick` | `tests-robot-smarttests-pts-v2-quick.yml` | 40 | 0ms |
 
 **Why the Demo Has Simulated Latency?** The demo application includes 500ms of simulated API latency per request, bringing the full 451-test suite to approximately 31 minutes. This simulates a realistic enterprise test suite.
 
@@ -1030,6 +1030,6 @@ Projected Savings:
 - Demo repository: https://github.com/cloudbees-ps/smart-tests-robot-demo
 - PTSv2 demo branch: `patch-robot-demo-ptsv2` — workflow: `tests-robot-smarttests-pts-v2.yml`
 - PTSv1 demo branch: `patch-robot-demo-ptsv1` — workflow: `tests-robot-smarttests-pts-v1.yml`
-- PTSv1 quick debug branch (40 tests, 0ms latency): `patch-robot-demo-quick`
+- PTSv1 quick branch (40 tests, 0ms latency): `patch-robot-demo-quick` — workflows: `tests-robot-smarttests-pts-v1-quick.yml` / `tests-robot-smarttests-pts-v2-quick.yml`
 - Baseline workflow (no Smart Tests): `tests-robot-no-smarttests.yml`
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
