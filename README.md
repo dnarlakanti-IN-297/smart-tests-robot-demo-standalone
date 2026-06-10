@@ -25,11 +25,11 @@ Demo repository for **CloudBees Smart Tests** predictive test selection with Rob
 
 | Branch | Version | Tests | Latency | Workflow |
 |---|---|---|---|---|
-| `patch-robot-demo` | PTSv2 (AI-based) | 451 | 500ms simulated | `tests-robot-smarttests-pts-v2.yml` |
-| `patch-robot-demo-v1-launchable` | PTSv1 (ML-based) | 451 | 500ms simulated | `tests-robot-launchable-pts-v1.yml` |
-| `patch-launchable-quick` | PTSv1 quick debug | 40 | 0ms | `tests-robot-launchable-pts-v1.yml` |
+| `patch-robot-demo-ptsv2` | PTSv2 (AI-based) | 451 | 500ms simulated | `tests-robot-smarttests-pts-v2.yml` |
+| `patch-robot-demo-ptsv1` | PTSv1 (ML-based) | 451 | 500ms simulated | `tests-robot-launchable-pts-v1.yml` |
+| `patch-robot-demo-quick` | PTSv1 quick debug | 40 | 0ms | `tests-robot-launchable-pts-v1.yml` |
 
-Use `patch-launchable-quick` during initial PTSv1 setup — 40 tests with no latency gives fast feedback while warming up the ML model.
+Use `patch-robot-demo-quick` during initial PTSv1 setup — 40 tests with no latency gives fast feedback while warming up the ML model.
 
 ---
 
@@ -119,8 +119,9 @@ tests/robot/
 
 | Workflow | Trigger | Purpose |
 |---|---|---|
-| `tests-robot-smarttests-pts-v2.yml` | `patch-robot-demo` branch | PTSv2 Smart Tests integration |
-| `tests-robot-launchable-pts-v1.yml` | `patch-robot-demo-v1-launchable`, `patch-launchable-quick` | PTSv1 Smart Tests integration |
+| `tests-robot-smarttests-pts-v2.yml` | `patch-robot-demo-ptsv2` | PTSv2 Smart Tests — 451 tests, 500ms latency |
+| `tests-robot-smarttests-pts-v2-quick.yml` | `patch-robot-demo-quick` | PTSv2 Smart Tests — 40 tests, 0ms latency |
+| `tests-robot-launchable-pts-v1.yml` | `patch-robot-demo-ptsv1`, `patch-robot-demo-quick` | PTSv1 Smart Tests integration |
 | `tests-robot-no-smarttests.yml` | Manual / any branch | Baseline — full suite, no Smart Tests |
 
 Both Smart Tests workflows use the same seven-step pattern:
@@ -144,7 +145,7 @@ smart-tests record tests robot --session @session.txt test-results/output.xml
 | Full suite baseline | ~31 minutes (451 tests, 500ms latency) |
 | Smart Tests at 75% target | ~23 minutes (~25% savings) |
 | Smart Tests at 50% target | ~15 minutes (~50% savings) |
-| PTSv1 warm-up runs needed | ~6 runs on `patch-launchable-quick` (40 tests) |
+| PTSv1 warm-up runs needed | ~6 runs on `patch-robot-demo-quick` (40 tests) |
 | PTSv1 first prediction (40 tests, 75%) | Subset: 30, Remainder: 10 |
 
 ---

@@ -42,7 +42,7 @@
 | **Dry-run flag** | `--outputdir <dir>` | `--outputdir <dir>` |
 | **`record commit` step** | Required (same CLI) | Required |
 | **Workflow commands** | Identical to PTSv2 | Identical to PTSv1 |
-| **Demo branch** | `patch-robot-demo-v1-launchable` | `patch-robot-demo` |
+| **Demo branch** | `patch-robot-demo-ptsv1` | `patch-robot-demo-ptsv2` |
 | **Demo workflow file** | `tests-robot-launchable-pts-v1.yml` | `tests-robot-smarttests-pts-v2.yml` |
 
 > **Note — One CLI, two engines:** The `smart-tests-cli` commands, flags, and workflow structure are completely identical for PTSv1 and PTSv2. No separate CLI, no separate install. The token you configure is the only thing that changes — it routes the request to either the ML engine (PTSv1) or OpenAI (PTSv2).
@@ -169,9 +169,9 @@ The repository includes two demo branches, one for each version:
 
 | Version | Branch | Workflow | Tests | Latency |
 |---|---|---|---|---|
-| PTSv2 (AI-based) | `patch-robot-demo` | `tests-robot-smarttests-pts-v2.yml` | 451 | 500ms simulated |
-| PTSv1 (ML-based) | `patch-robot-demo-v1-launchable` | `tests-robot-launchable-pts-v1.yml` | 451 | 500ms simulated |
-| PTSv1 quick debug | `patch-launchable-quick` | `tests-robot-launchable-pts-v1.yml` | 40 | 0ms |
+| PTSv2 (AI-based) | `patch-robot-demo-ptsv2` | `tests-robot-smarttests-pts-v2.yml` | 451 | 500ms simulated |
+| PTSv1 (ML-based) | `patch-robot-demo-ptsv1` | `tests-robot-launchable-pts-v1.yml` | 451 | 500ms simulated |
+| PTSv1 quick debug | `patch-robot-demo-quick` | `tests-robot-launchable-pts-v1.yml` | 40 | 0ms |
 
 **Why the Demo Has Simulated Latency?** The demo application includes 500ms of simulated API latency per request, bringing the full 451-test suite to approximately 31 minutes. This simulates a realistic enterprise test suite.
 
@@ -242,8 +242,8 @@ The repository includes two demo branches, one for each version:
 3. If prompted, click "I understand my workflows, go ahead and enable them"
 
 **Workflows Available:**
-- **Robot Framework Tests:** PTSv2 demo — `patch-robot-demo` branch
-- **Robot Framework Tests (PTSv1):** PTSv1 demo — `patch-robot-demo-v1-launchable` branch
+- **Robot Framework Tests:** PTSv2 demo — `patch-robot-demo-ptsv2` branch
+- **Robot Framework Tests (PTSv1):** PTSv1 demo — `patch-robot-demo-ptsv1` branch
 - **Robot Framework Tests (No Smart Tests - Baseline):** Full suite without Smart Tests, for comparison
 
 #### Configure Smart Tests Token
@@ -288,9 +288,9 @@ Use the branch that matches your org's enabled version:
 
 | Your org version | Branch to use | Workflow to use |
 |---|---|---|
-| PTSv2 | `patch-robot-demo` | Robot Framework Tests |
-| PTSv1 | `patch-robot-demo-v1-launchable` | Robot Framework Tests (PTSv1) |
-| PTSv1 (faster iteration) | `patch-launchable-quick` | Robot Framework Tests (PTSv1) |
+| PTSv2 | `patch-robot-demo-ptsv2` | Robot Framework Tests |
+| PTSv1 | `patch-robot-demo-ptsv1` | Robot Framework Tests (PTSv1) |
+| PTSv1 (faster iteration) | `patch-robot-demo-quick` | Robot Framework Tests (PTSv1) |
 
 The demo workflows are pre-configured to trigger on these branches. You can also create your own branch and update the workflow trigger.
 
@@ -322,7 +322,7 @@ Wait for the workflow to complete (~31 minutes with 500ms simulated latency).
 
 Wait for the workflow to complete.
 
-> **PTSv1 only — Repeat this step 5-7 times before expecting predictions.** PTSv1 needs a history of test results to train its ML model. To generate varied commit diffs, make a small change to any source file (e.g., add a blank line to `app/main.py`), commit it, and push to `patch-robot-demo-v1-launchable`. Each push triggers the workflow automatically. Alternatively, use the **Run workflow** button to trigger runs manually — but varied commits produce better predictions.
+> **PTSv1 only — Repeat this step 5-7 times before expecting predictions.** PTSv1 needs a history of test results to train its ML model. To generate varied commit diffs, make a small change to any source file (e.g., add a blank line to `app/main.py`), commit it, and push to `patch-robot-demo-ptsv1`. Each push triggers the workflow automatically. Alternatively, use the **Run workflow** button to trigger runs manually — but varied commits produce better predictions.
 
 > **Note — What Smart Tests is doing behind the scenes:**
 >
@@ -359,7 +359,7 @@ Subset            : (none — model building history)
 Remainder         : (none)
 ```
 
-**PTSv1 — after warm-up (6+ runs on patch-launchable-quick, actual result):**
+**PTSv1 — after warm-up (6+ runs on patch-robot-demo-quick, actual result):**
 ```
 Session status    : Session passed
 Subset            : 30 testcases
@@ -959,9 +959,9 @@ Projected Savings:
 | Metric | Value |
 |---|---|
 | Total Robot Framework tests (full suite) | 451 |
-| Quick debug branch tests (`patch-launchable-quick`) | 40 |
+| Quick debug branch tests (`patch-robot-demo-quick`) | 40 |
 | Simulated API latency per request | 500ms (full suite), 0ms (quick branch) |
-| PTSv1: observation runs before first predictions | ~6 runs on `patch-launchable-quick` |
+| PTSv1: observation runs before first predictions | ~6 runs on `patch-robot-demo-quick` |
 | PTSv1: first prediction result (75% target, 40 tests) | Subset: 30, Remainder: 10 |
 | Estimated full-suite baseline runtime | ~31 minutes |
 | Estimated full-suite at 75% target (after model ready) | ~23 minutes (~25% savings) |
@@ -1016,8 +1016,8 @@ Projected Savings:
 ## Additional Resources
 
 - Demo repository: https://github.com/cloudbees-ps/smart-tests-robot-demo
-- PTSv2 demo branch: `patch-robot-demo` — workflow: `tests-robot-smarttests-pts-v2.yml`
-- PTSv1 demo branch: `patch-robot-demo-v1-launchable` — workflow: `tests-robot-launchable-pts-v1.yml`
-- PTSv1 quick debug branch (40 tests, 0ms latency): `patch-launchable-quick`
+- PTSv2 demo branch: `patch-robot-demo-ptsv2` — workflow: `tests-robot-smarttests-pts-v2.yml`
+- PTSv1 demo branch: `patch-robot-demo-ptsv1` — workflow: `tests-robot-launchable-pts-v1.yml`
+- PTSv1 quick debug branch (40 tests, 0ms latency): `patch-robot-demo-quick`
 - Baseline workflow (no Smart Tests): `tests-robot-no-smarttests.yml`
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
