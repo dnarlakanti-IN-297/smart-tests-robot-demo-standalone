@@ -232,9 +232,10 @@ The repository includes three demo branches — full-suite and quick variants:
 1. Navigate to: https://github.com/cloudbees-ps/smart-tests-robot-demo
 2. Click **Fork** button (top right)
 3. Select your GitHub account
-4. Wait for fork to complete
+4. Uncheck **Copy the `main` branch only** — all demo branches must be included
+5. Wait for fork to complete
 
-**Result:** Personal copy of repository under your GitHub account
+**Result:** Personal copy of repository under your GitHub account with all demo branches (`patch-robot-demo-ptsv2`, `patch-robot-demo-ptsv1`, `patch-robot-demo-quick`)
 
 #### Enable GitHub Actions
 
