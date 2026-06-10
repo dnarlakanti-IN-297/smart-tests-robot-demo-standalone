@@ -43,7 +43,7 @@
 | **`record commit` step** | Required (same CLI) | Required |
 | **Workflow commands** | Identical to PTSv2 | Identical to PTSv1 |
 | **Demo branch** | `patch-robot-demo-v1-launchable` | `patch-robot-demo` |
-| **Demo workflow file** | `tests-robot-launchable.yml` | `tests-robot.yml` |
+| **Demo workflow file** | `tests-robot-launchable-pts-v1.yml` | `tests-robot-smarttests-pts-v2.yml` |
 
 > **Note — One CLI, two engines:** The `smart-tests-cli` commands, flags, and workflow structure are completely identical for PTSv1 and PTSv2. No separate CLI, no separate install. The token you configure is the only thing that changes — it routes the request to either the ML engine (PTSv1) or OpenAI (PTSv2).
 
@@ -163,15 +163,15 @@ Robot Framework is an officially supported Smart Tests framework.
 
 This guide teaches CloudBees Smart Tests predictive test selection using a Robot Framework application as the implementation pattern. The concepts and integration patterns apply to any project using Robot Framework for testing, regardless of whether your organization uses PTSv1 or PTSv2.
 
-**Demonstration Repository:** https://github.com/cloudbees-ps/smart-tests-robot-demo.git
+**Demonstration Repository:** https://github.com/cloudbees-ps/smart-tests-robot-demo
 
 The repository includes two demo branches, one for each version:
 
 | Version | Branch | Workflow | Tests | Latency |
 |---|---|---|---|---|
-| PTSv2 (AI-based) | `patch-robot-demo` | `tests-robot.yml` | 451 | 500ms simulated |
-| PTSv1 (ML-based) | `patch-robot-demo-v1-launchable` | `tests-robot-launchable.yml` | 451 | 500ms simulated |
-| PTSv1 quick debug | `patch-launchable-quick` | `tests-robot-launchable.yml` | 40 | 0ms |
+| PTSv2 (AI-based) | `patch-robot-demo` | `tests-robot-smarttests-pts-v2.yml` | 451 | 500ms simulated |
+| PTSv1 (ML-based) | `patch-robot-demo-v1-launchable` | `tests-robot-launchable-pts-v1.yml` | 451 | 500ms simulated |
+| PTSv1 quick debug | `patch-launchable-quick` | `tests-robot-launchable-pts-v1.yml` | 40 | 0ms |
 
 **Why the Demo Has Simulated Latency?** The demo application includes 500ms of simulated API latency per request, bringing the full 451-test suite to approximately 31 minutes. This simulates a realistic enterprise test suite.
 
@@ -228,7 +228,7 @@ The repository includes two demo branches, one for each version:
 
 #### Fork the Repository
 
-1. Navigate to: https://github.com/anuddeeph2/issues-tracker-app
+1. Navigate to: https://github.com/cloudbees-ps/smart-tests-robot-demo
 2. Click **Fork** button (top right)
 3. Select your GitHub account
 4. Wait for fork to complete
@@ -473,7 +473,7 @@ You've completed:
 
 ## Understanding the CI Integration
 
-Both `tests-robot.yml` (PTSv2) and `tests-robot-launchable.yml` (PTSv1) follow the same six-step pattern using `smart-tests-cli==2.11.2`. Open either file in the repository to see the complete integration.
+Both `tests-robot-smarttests-pts-v2.yml` (PTSv2) and `tests-robot-launchable-pts-v1.yml` (PTSv1) follow the same six-step pattern using `smart-tests-cli==2.11.2`. Open either file in the repository to see the complete integration.
 
 ### The Six-Step Integration Pattern
 
@@ -1015,9 +1015,9 @@ Projected Savings:
 
 ## Additional Resources
 
-- Demo repository: https://github.com/cloudbees-ps/smart-tests-robot-demo.git
-- PTSv2 demo branch: `patch-robot-demo` — workflow: `tests-robot.yml`
-- PTSv1 demo branch: `patch-robot-demo-v1-launchable` — workflow: `tests-robot-launchable.yml`
+- Demo repository: https://github.com/cloudbees-ps/smart-tests-robot-demo
+- PTSv2 demo branch: `patch-robot-demo` — workflow: `tests-robot-smarttests-pts-v2.yml`
+- PTSv1 demo branch: `patch-robot-demo-v1-launchable` — workflow: `tests-robot-launchable-pts-v1.yml`
 - PTSv1 quick debug branch (40 tests, 0ms latency): `patch-launchable-quick`
 - Baseline workflow (no Smart Tests): `tests-robot-no-smarttests.yml`
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
