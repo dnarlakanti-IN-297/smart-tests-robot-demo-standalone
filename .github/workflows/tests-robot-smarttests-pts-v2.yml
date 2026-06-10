@@ -27,14 +27,14 @@ on:
         description: 'Smart Tests mode'
         required: true
         type: choice
-        default: 'observation'
+        default: 'production'
         options:
-          - observation
           - production
+          - observation
       target:
         description: 'Optimization target (e.g., --target 50%)'
         required: false
-        default: '--target 80%'
+        default: '--target 75%'
         type: string
 
 jobs:
@@ -43,8 +43,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
-      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
-      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 80%' }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
+      SIMULATED_LATENCY_MS: 500
 
     steps:
     - name: Checkout code
@@ -83,7 +84,7 @@ jobs:
 
     - name: Record build with Smart Tests
       run: |
-        smart-tests record build --build ${{ github.run_id }} --source ${{ github.repository }}=${{ github.workspace }}
+        smart-tests record build --build ${{ github.run_id }} --source ${{ github.workspace }}
 
     - name: Record session with Smart Tests
       run: |
