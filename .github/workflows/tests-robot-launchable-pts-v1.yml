@@ -24,10 +24,10 @@ on:
         default: '--target 75%'
         type: string
   push:
-    branches: [ patch-robot-demo-v1-launchable ]
+    branches: [ patch-robot-demo-ptsv1 ]
     paths:
       - 'tests/robot/**'
-      - '.github/workflows/tests-robot-launchable.yml'
+      - '.github/workflows/tests-robot-launchable-pts-v1.yml'
 
 jobs:
   robot-launchable-tests:

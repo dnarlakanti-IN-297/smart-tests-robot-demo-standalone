@@ -5,7 +5,7 @@
 ![Robot Framework](https://img.shields.io/badge/Robot%20Framework-7.0+-orange.svg)
 ![Smart Tests](https://img.shields.io/badge/Smart%20Tests-PTSv1%20ML--based-blue.svg)
 
-> **You are on `patch-robot-demo-v1-launchable` — the PTSv1 (ML-based) demo branch.**
+> **You are on `patch-robot-demo-ptsv1` — the PTSv1 (ML-based) demo branch.**
 >
 > This branch uses `smart-tests-cli==2.11.2` with a PTSv1 token. Predictions are built from historical test run data. Run the suite 5-7 times before expecting predictions to appear.
 
@@ -52,15 +52,15 @@ The workflow maps `LAUNCHABLE_TOKEN` → `SMART_TESTS_TOKEN` internally so the C
 
 ### 4. Warm up the ML model (PTSv1)
 
-PTSv1 needs historical run data before it can make predictions. Use `patch-launchable-quick` (40 tests, 0ms latency) to build history faster:
+PTSv1 needs historical run data before it can make predictions. Use `patch-robot-demo-quick` (40 tests, 0ms latency) to build history faster:
 
-1. Check out `patch-launchable-quick` and run `tests-robot-launchable-pts-v1.yml` in **observation** mode
+1. Check out `patch-robot-demo-quick` and run `tests-robot-launchable-pts-v1.yml` in **observation** mode
 2. Make a small commit (add a blank line to any source file), push, and run again
 3. Repeat 5-7 times — the session view in CloudBees Unify will show "No subset requests" until the model has enough history
 
 ### 5. Run on this branch with observation mode
 
-Once the model has history from `patch-launchable-quick`, run this branch:
+Once the model has history from `patch-robot-demo-quick`, run this branch:
 
 1. Go to **Actions > Robot Framework Tests (Launchable)** (`tests-robot-launchable-pts-v1.yml`)
 2. Set **mode:** `observation`, **target:** `--target 75%`
@@ -97,20 +97,6 @@ robot --dryrun --outputdir /tmp/robot-dryrun tests/robot/
 
 ---
 
-## CI Workflow: Seven-Step Pattern
-
-```
-smart-tests record commit
-smart-tests record build
-smart-tests record session  →  session.txt
-robot --dryrun --outputdir /tmp/robot-dryrun  →  output.xml
-smart-tests subset robot --session @session.txt <TARGET> /tmp/robot-dryrun/output.xml
-eval robot ... $SUBSET_CONTENT tests/robot/
-smart-tests record tests robot --session @session.txt test-results/output.xml
-```
-
----
-
 ## Expected Results
 
 | Metric | Value |
@@ -118,7 +104,7 @@ smart-tests record tests robot --session @session.txt test-results/output.xml
 | Full suite baseline | ~31 minutes |
 | Smart Tests at 75% target | ~23 minutes (~25% savings) |
 | Smart Tests at 50% target | ~15 minutes (~50% savings) |
-| Warm-up runs needed | ~6 runs on `patch-launchable-quick` (40 tests) |
+| Warm-up runs needed | ~6 runs on `patch-robot-demo-quick` (40 tests) |
 | First prediction (40 tests, 75%) | Subset: ~30, Remainder: ~10 |
 
 ---
@@ -128,8 +114,8 @@ smart-tests record tests robot --session @session.txt test-results/output.xml
 | Branch | Version | Purpose |
 |---|---|---|
 | `main` | — | Stable base, docs, workflows |
-| `patch-robot-demo` | PTSv2 (AI-based) | Full suite PTSv2 demo |
-| `patch-launchable-quick` | PTSv1 quick debug | 40 tests, 0ms latency for PTSv1 warm-up |
+| `patch-robot-demo-ptsv2` | PTSv2 (AI-based) | Full suite PTSv2 demo |
+| `patch-robot-demo-quick` | PTSv1 + PTSv2 quick | 40 tests, 0ms latency for fast demo/warm-up |
 
 ---
 
