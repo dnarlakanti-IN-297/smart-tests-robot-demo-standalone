@@ -218,7 +218,7 @@ The repository includes two demo branches, one for each version:
 |---|---|---|
 | `<YOUR_TOKEN>` | One CloudBees API token, created from the org/workspace where your version is enabled. PTSv1 token routes to the ML engine; PTSv2 token routes to OpenAI. | CloudBees UI: Smart Tests > Settings > Create a Workspace API Key |
 
-> **Note:** You only need one token. Create it in the org/workspace that has your version enabled (PTSv1 or PTSv2). Add it to GitHub secrets as `SMART_TESTS_TOKEN` — both PTSv1 and PTSv2 workflows read the same secret.
+> **Note:** You only need one token. Create it in the org/workspace that has your version enabled (PTSv1 or PTSv2). Add it to GitHub secrets as `PTSv1_TOKEN` (for PTSv1) or `PTSv2_TOKEN` (for PTSv2).
 
 ---
 
@@ -269,12 +269,12 @@ Add only the secret that matches the version your org has enabled — you need o
 
 | Your org version | Secret Name | Secret Value |
 |---|---|---|
-| PTSv2 | `SMART_TESTS_TOKEN` | Token from your PTSv2-enabled org/workspace |
-| PTSv1 | `SMART_TESTS_TOKEN` | Token from your PTSv1-enabled org/workspace |
+| PTSv2 | `PTSv2_TOKEN` | Token from your PTSv2-enabled org/workspace |
+| PTSv1 | `PTSv1_TOKEN` | Token from your PTSv1-enabled org/workspace |
 
 5. Click **Add secret**
 
-> **Note:** Both secret names map to the same `SMART_TESTS_TOKEN` environment variable inside the workflow — the CLI always reads `SMART_TESTS_TOKEN` regardless of which version you use. The different secret names exist only because the two demo workflows in this repo were built for different orgs.
+> **Note:** Both `PTSv1_TOKEN` and `PTSv2_TOKEN` map to the `SMART_TESTS_TOKEN` environment variable inside the workflow — the CLI always reads `SMART_TESTS_TOKEN` at runtime. The separate secret names make it clear which token belongs to which engine.
 
 **Verification:** Secret appears in repository secrets list
 
@@ -601,7 +601,7 @@ eval robot $SUBSET_CONTENT tests/robot/
 
 ### Key Configuration Points
 
-- **Token:** The CLI always reads `SMART_TESTS_TOKEN` from the environment. You need one token — generated from the org/workspace where your version (PTSv1 or PTSv2) is enabled. Add it as `SMART_TESTS_TOKEN` (PTSv2) or `SMART_TESTS_TOKEN` (PTSv1) in GitHub secrets; the workflow maps it to `SMART_TESTS_TOKEN` before the CLI runs.
+- **Token:** Add your token to GitHub secrets as `PTSv2_TOKEN` (PTSv2) or `PTSv1_TOKEN` (PTSv1). The workflow maps it to the `SMART_TESTS_TOKEN` environment variable, which is what the CLI reads at runtime.
 - **Session reference:** Always use `@session.txt`. This is the Smart Tests CLI syntax for file references.
 - **Dry-run XML:** Always pass the full path to the `--outputdir` output (`/tmp/robot-dryrun/output.xml`). Never pass `.robot` source files.
 - **`eval`:** Always required when running Robot Framework with Smart Tests subset output.
