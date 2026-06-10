@@ -20,8 +20,8 @@
 | Tests | 40 (`auth_edge_cases.robot`) | 40 (`auth_edge_cases.robot`) |
 | Simulated latency | 0ms | 0ms |
 | Run time | ~1-2 minutes | ~1-2 minutes |
-| GitHub secret | `LAUNCHABLE_TOKEN` | `SMART_TESTS_TOKEN` |
-| Workflow | `tests-robot-launchable-pts-v1.yml` | `tests-robot-smarttests-pts-v2-quick.yml` |
+| GitHub secret | `SMART_TESTS_TOKEN` | `SMART_TESTS_TOKEN` |
+| Workflow | `tests-robot-smarttests-pts-v1.yml` | `tests-robot-smarttests-pts-v2-quick.yml` |
 | Predictions | After ~5-7 runs | From first run |
 
 ---
@@ -39,8 +39,7 @@ Add only the secret that matches your org's enabled version:
 
 | Secret name | Value | For version |
 |---|---|---|
-| `SMART_TESTS_TOKEN` | Token from your PTSv2-enabled org/workspace | PTSv2 |
-| `LAUNCHABLE_TOKEN` | Token from your PTSv1-enabled org/workspace | PTSv1 |
+| `SMART_TESTS_TOKEN` | Token from your org/workspace in CloudBees Unify | PTSv1 and PTSv2 |
 
 ### 3. Run the appropriate workflow
 
@@ -50,7 +49,7 @@ Add only the secret that matches your org's enabled version:
 3. Predictions appear from the first run
 
 **PTSv1:**
-1. Go to **Actions > Robot Framework Tests (Launchable)**
+1. Go to **Actions > Robot Framework Tests (PTSv1)**
 2. Set **mode:** `observation`, **target:** `--target 75%`
 3. Make a small commit, push, repeat 5-7 times until predictions appear
 
