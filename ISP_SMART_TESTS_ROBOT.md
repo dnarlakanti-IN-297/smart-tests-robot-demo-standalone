@@ -43,7 +43,7 @@
 | **`record commit` step** | Required (same CLI) | Required |
 | **Workflow commands** | Identical to PTSv2 | Identical to PTSv1 |
 | **Demo branch** | `patch-robot-demo-ptsv1` | `patch-robot-demo-ptsv2` |
-| **Demo workflow file** | `tests-robot-launchable-pts-v1.yml` | `tests-robot-smarttests-pts-v2.yml` |
+| **Demo workflow file** | `tests-robot-smarttests-pts-v1.yml` | `tests-robot-smarttests-pts-v2.yml` |
 
 > **Note — One CLI, two engines:** The `smart-tests-cli` commands, flags, and workflow structure are completely identical for PTSv1 and PTSv2. No separate CLI, no separate install. The token you configure is the only thing that changes — it routes the request to either the ML engine (PTSv1) or OpenAI (PTSv2).
 
@@ -170,8 +170,8 @@ The repository includes two demo branches, one for each version:
 | Version | Branch | Workflow | Tests | Latency |
 |---|---|---|---|---|
 | PTSv2 (AI-based) | `patch-robot-demo-ptsv2` | `tests-robot-smarttests-pts-v2.yml` | 451 | 500ms simulated |
-| PTSv1 (ML-based) | `patch-robot-demo-ptsv1` | `tests-robot-launchable-pts-v1.yml` | 451 | 500ms simulated |
-| PTSv1 quick debug | `patch-robot-demo-quick` | `tests-robot-launchable-pts-v1.yml` | 40 | 0ms |
+| PTSv1 (ML-based) | `patch-robot-demo-ptsv1` | `tests-robot-smarttests-pts-v1.yml` | 451 | 500ms simulated |
+| PTSv1 quick debug | `patch-robot-demo-quick` | `tests-robot-smarttests-pts-v1.yml` | 40 | 0ms |
 
 **Why the Demo Has Simulated Latency?** The demo application includes 500ms of simulated API latency per request, bringing the full 451-test suite to approximately 31 minutes. This simulates a realistic enterprise test suite.
 
@@ -218,7 +218,7 @@ The repository includes two demo branches, one for each version:
 |---|---|---|
 | `<YOUR_TOKEN>` | One CloudBees API token, created from the org/workspace where your version is enabled. PTSv1 token routes to the ML engine; PTSv2 token routes to OpenAI. | CloudBees UI: Smart Tests > Settings > Create a Workspace API Key |
 
-> **Note:** You only need one token. Create it in the org/workspace that has your version enabled (PTSv1 or PTSv2). Add it to GitHub secrets as `SMART_TESTS_TOKEN` (for PTSv2) or `LAUNCHABLE_TOKEN` (for PTSv1) — whichever matches the demo workflow you are running.
+> **Note:** You only need one token. Create it in the org/workspace that has your version enabled (PTSv1 or PTSv2). Add it to GitHub secrets as `SMART_TESTS_TOKEN` — both PTSv1 and PTSv2 workflows read the same secret.
 
 ---
 
@@ -270,7 +270,7 @@ Add only the secret that matches the version your org has enabled — you need o
 | Your org version | Secret Name | Secret Value |
 |---|---|---|
 | PTSv2 | `SMART_TESTS_TOKEN` | Token from your PTSv2-enabled org/workspace |
-| PTSv1 | `LAUNCHABLE_TOKEN` | Token from your PTSv1-enabled org/workspace |
+| PTSv1 | `SMART_TESTS_TOKEN` | Token from your PTSv1-enabled org/workspace |
 
 5. Click **Add secret**
 
@@ -473,7 +473,7 @@ You've completed:
 
 ## Understanding the CI Integration
 
-Both `tests-robot-smarttests-pts-v2.yml` (PTSv2) and `tests-robot-launchable-pts-v1.yml` (PTSv1) follow the same six-step pattern using `smart-tests-cli==2.11.2`. Open either file in the repository to see the complete integration.
+Both `tests-robot-smarttests-pts-v2.yml` (PTSv2) and `tests-robot-smarttests-pts-v1.yml` (PTSv1) follow the same six-step pattern using `smart-tests-cli==2.11.2`. Open either file in the repository to see the complete integration.
 
 ### The Six-Step Integration Pattern
 
@@ -601,7 +601,7 @@ eval robot $SUBSET_CONTENT tests/robot/
 
 ### Key Configuration Points
 
-- **Token:** The CLI always reads `SMART_TESTS_TOKEN` from the environment. You need one token — generated from the org/workspace where your version (PTSv1 or PTSv2) is enabled. Add it as `SMART_TESTS_TOKEN` (PTSv2) or `LAUNCHABLE_TOKEN` (PTSv1) in GitHub secrets; the workflow maps it to `SMART_TESTS_TOKEN` before the CLI runs.
+- **Token:** The CLI always reads `SMART_TESTS_TOKEN` from the environment. You need one token — generated from the org/workspace where your version (PTSv1 or PTSv2) is enabled. Add it as `SMART_TESTS_TOKEN` (PTSv2) or `SMART_TESTS_TOKEN` (PTSv1) in GitHub secrets; the workflow maps it to `SMART_TESTS_TOKEN` before the CLI runs.
 - **Session reference:** Always use `@session.txt`. This is the Smart Tests CLI syntax for file references.
 - **Dry-run XML:** Always pass the full path to the `--outputdir` output (`/tmp/robot-dryrun/output.xml`). Never pass `.robot` source files.
 - **`eval`:** Always required when running Robot Framework with Smart Tests subset output.
@@ -774,7 +774,7 @@ Production Mode (after validation):
    - [ ] Only after switching to production mode
 
 4. **Which CLI is used for both PTSv1 and PTSv2?**
-   - [ ] A different CLI per version — `launchable` for PTSv1, `smart-tests-cli` for PTSv2
+   - [ ] A different CLI per version — `smart-tests-cli==2.11.2` for both PTSv1 and PTSv2
    - [x] `smart-tests-cli==2.11.2` for both
    - [ ] A different CLI per version
    - [ ] No CLI is needed
@@ -1017,7 +1017,7 @@ Projected Savings:
 
 - Demo repository: https://github.com/cloudbees-ps/smart-tests-robot-demo
 - PTSv2 demo branch: `patch-robot-demo-ptsv2` — workflow: `tests-robot-smarttests-pts-v2.yml`
-- PTSv1 demo branch: `patch-robot-demo-ptsv1` — workflow: `tests-robot-launchable-pts-v1.yml`
+- PTSv1 demo branch: `patch-robot-demo-ptsv1` — workflow: `tests-robot-smarttests-pts-v1.yml`
 - PTSv1 quick debug branch (40 tests, 0ms latency): `patch-robot-demo-quick`
 - Baseline workflow (no Smart Tests): `tests-robot-no-smarttests.yml`
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
