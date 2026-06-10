@@ -34,7 +34,7 @@ on:
       target:
         description: 'Optimization target (e.g., --target 50%)'
         required: false
-        default: '--target 75%'
+        default: '--target 80%'
         type: string
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
     name: Robot Framework API Tests
     runs-on: ubuntu-latest
     env:
-      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      SMART_TESTS_TOKEN: ${{ secrets.PTSv2_TOKEN }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
       SIMULATED_LATENCY_MS: 500
