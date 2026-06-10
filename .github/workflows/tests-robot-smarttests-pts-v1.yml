@@ -1,0 +1,193 @@
+name: Robot Framework Tests (PTSv1)
+
+# Smart Tests CLI Integration for Robot Framework (PTS v1 branch):
+# ✅ Uses smart-tests-cli==2.11.2 — same CLI as PTSv2, token determines engine
+# ✅ smart-tests subset robot with --dry-run-report
+# ✅ smart-tests record tests robot with output.xml
+# ✅ eval used to handle single-quoted subset args correctly
+# 📚 Documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Smart Tests mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      target:
+        description: 'Optimization target (e.g., --target 75%)'
+        required: false
+        default: '--target 75%'
+        type: string
+  push:
+    branches: [ patch-robot-demo-ptsv1 ]
+    paths:
+      - 'tests/robot/**'
+      - '.github/workflows/tests-robot-smarttests-pts-v1.yml'
+
+jobs:
+  robot-ptsv1-tests:
+    name: Robot Framework API Tests (Smart Tests CLI)
+    runs-on: ubuntu-latest
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
+      SIMULATED_LATENCY_MS: 500
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-robot.txt
+        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Record commits with Smart Tests
+      run: |
+        # Pre-populate commit history so Smart Tests has context for predictions
+        # Required for new workspaces - without this, only the latest commit is available
+        smart-tests record commit --name ${{ github.repository }} --source ${{ github.workspace }} --max-days 90
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }} --source ${{ github.workspace }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite robot-api > session.txt
+        cat session.txt
+        echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
+        echo "Target: $TARGET_FLAG"
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Create Smart Tests subset
+      shell: bash
+      run: |
+        set +e
+        echo "Running Robot dry-run to collect test names..."
+        mkdir -p /tmp/robot-dryrun
+        robot --dryrun --outputdir /tmp/robot-dryrun tests/robot/ 2>/dev/null || true
+
+        echo "Requesting subset from Smart Tests..."
+        # Redirect stderr to show status table in logs, stdout only has robot args
+        smart-tests subset robot --session @session.txt $TARGET_FLAG /tmp/robot-dryrun/output.xml > smart-tests-subset.txt 2>/tmp/subset-status.txt
+        EXIT_CODE=$?
+        cat /tmp/subset-status.txt || true
+        set -e
+
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "⚠️  Smart Tests subset failed, falling back to ALL tests"
+          cat smart-tests-subset.txt
+          echo "ALL" > smart-tests-subset.txt
+        fi
+
+        echo "Subset result:"
+        cat smart-tests-subset.txt
+        echo "Tests in subset: $(wc -l < smart-tests-subset.txt)"
+
+    - name: Start application and run Robot tests
+      continue-on-error: true
+      run: |
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        mkdir -p test-results
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
+
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          echo "Running Robot Framework subset"
+          echo "Subset args: $SUBSET_CONTENT"
+          # smart-tests subset robot outputs Robot CLI args directly (e.g. -s Api -t 'Test Name')
+          eval robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $SUBSET_CONTENT \
+            tests/robot/ || true
+        else
+          echo "Running all Robot Framework tests"
+          robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            tests/robot/ || true
+        fi
+
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Record test results with Smart Tests
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "Recording test results to Smart Tests..."
+          smart-tests record tests robot --session @session.txt test-results/output.xml
+          echo "✅ Test results recorded to Smart Tests successfully!"
+        else
+          echo "❌ No output.xml found"
+          ls -la test-results/ || echo "test-results directory not found"
+          exit 1
+        fi
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Test Summary ==="
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print(str(s.get("pass")) + " passed, " + str(s.get("fail")) + " failed") if s is not None else None' || echo "Could not parse test results"
+        else
+          echo "No test results found"
+        fi
+
+    - name: Upload results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-ptsv1-results
+        path: test-results/
+        retention-days: 30
