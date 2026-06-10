@@ -1,4 +1,4 @@
-name: Robot Framework Tests (PTSv2 Quick - 40 tests)
+name: Robot Framework Tests (Quick - PTSv2)
 
 # Smart Tests CLI Integration for Robot Framework (PTSv2 quick branch):
 # ✅ Uses smart-tests-cli==2.11.2
