@@ -1,4 +1,4 @@
-name: Robot Framework Tests (Launchable)
+name: Robot Framework Tests (PTSv1)
 
 # Smart Tests CLI Integration for Robot Framework (PTS v1 branch):
 # ✅ Uses smart-tests-cli==2.11.2 (replaces launchable CLI)
