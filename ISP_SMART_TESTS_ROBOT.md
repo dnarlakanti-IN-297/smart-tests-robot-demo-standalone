@@ -308,13 +308,15 @@ This workflow has no Smart Tests integration — it runs all tests as-is. Use it
 2. Click **Robot Framework Tests (No Smart Tests - Baseline)**
 3. Click **Run workflow**
 4. Select branch:
-   - `patch-robot-demo-ptsv2` or `patch-robot-demo-ptsv1` for the full 451-test demo
-   - `patch-robot-demo-quick` for a fast ~1-2 minute baseline
+   - `patch-robot-demo-ptsv2` — for PTSv2 full demo (451 tests, 500ms latency)
+   - `patch-robot-demo-ptsv1` — for PTSv1 full demo (451 tests, 500ms latency)
 5. Click **Run workflow**
 
-Wait for the workflow to complete.
+Wait ~31 minutes for completion.
 
-**What you get:** The full test suite runtime with no optimization — approximately 31 minutes on full branches (500ms simulated latency), ~1-2 minutes on the quick branch. This is your before reference. Every Smart Tests run will be compared against this number.
+**What you get:** The full test suite runtime with no optimization — approximately 31 minutes. This is your before reference. Every Smart Tests run on the same branch will be compared against this number.
+
+> **Note:** Run the baseline on the same branch you intend to use for your Smart Tests demo. The quick branch (`patch-robot-demo-quick`) has 0ms latency and only 40 tests — a baseline there is not a meaningful comparison for the full demo.
 
 ---
 
@@ -348,7 +350,7 @@ Session status    : Observation mode
 Tests executed    : 451
 Projected subset  : ~340 tests at 75% target
 ```
-PTSv2 generates predictions from the first run. The UI shows the projected subset size and estimated time savings — but all 451 tests still ran because you are in observation mode. The savings shown are projected, not yet realized.
+PTSv2 generates predictions from the first run. One observation run is sufficient — the AI model analyzes the code change directly and does not need historical data to warm up. The UI shows the projected subset size and estimated time savings, but all 451 tests still ran because you are in observation mode. The savings shown are projected, not yet realized.
 
 **Run 2 — Production mode (realize actual savings):**
 
@@ -362,8 +364,6 @@ PTSv2 generates predictions from the first run. The UI shows the projected subse
 Wait ~23 minutes.
 
 **What you see:** Only ~340 tests run instead of 451. Actual runtime drops from ~31 minutes to ~23 minutes — a 25% saving realized.
-
-> **Quick variant:** To see PTSv2 in under 2 minutes, use `tests-robot-smarttests-pts-v2-quick.yml` (`Robot Framework Tests (Quick - PTSv2)`) on `patch-robot-demo-quick`. Same flow — observation run first, then production. Results appear in Unify showing 40 tests with a projected subset of ~30.
 
 ---
 
@@ -439,6 +439,54 @@ All 451 tests ran, but Unify now shows the projected subset and estimated saving
 Wait ~23 minutes.
 
 **What you see:** Only ~340 tests run. Actual runtime drops from ~31 minutes to ~23 minutes — a 25% saving realized.
+
+---
+
+##### Scenario C: Quick Branch — Fast demo for both PTSv1 and PTSv2 (~1-2 minutes per run)
+
+Use `patch-robot-demo-quick` when you want to demonstrate Smart Tests in under 2 minutes, or when warming up the PTSv1 ML model before switching to the full branch. Both PTSv1 and PTSv2 are available on this branch. There is no meaningful baseline on this branch — skip Step 1 and run directly with Smart Tests.
+
+**PTSv2 quick:**
+
+**Workflow:** `tests-robot-smarttests-pts-v2-quick.yml` (`Robot Framework Tests (Quick - PTSv2)`)
+**Branch:** `patch-robot-demo-quick`
+
+1. Click **Robot Framework Tests (Quick - PTSv2)** > **Run workflow**
+2. Configure:
+   - Branch: `patch-robot-demo-quick`
+   - **mode:** `observation`
+   - **target:** `--target 75%`
+3. Click **Run workflow** — completes in ~1-2 minutes
+
+**What to check in Unify after run 1:**
+```
+Session status    : Observation mode
+Tests executed    : 40
+Projected subset  : ~30 tests at 75% target
+```
+Predictions appear immediately. Switch to production mode on the next run to realize savings.
+
+4. Run again with **mode:** `production` — only ~30 tests run instead of 40.
+
+---
+
+**PTSv1 quick (warm-up):**
+
+**Workflow:** `tests-robot-smarttests-pts-v1-quick.yml` (`Robot Framework Tests (Quick - PTSv1)`)
+**Branch:** `patch-robot-demo-quick`
+
+1. Click **Robot Framework Tests (Quick - PTSv1)** > **Run workflow**
+2. Configure:
+   - Branch: `patch-robot-demo-quick`
+   - **mode:** `observation`
+   - **target:** `--target 75%`
+3. Click **Run workflow** — completes in ~1-2 minutes
+4. Make a small commit (e.g., add a blank line to `app/main.py`), push to `patch-robot-demo-quick`, and run again
+5. Repeat a total of **5-7 times** until Subset and Remainder counts appear in Unify
+
+Once predictions appear, switch to **mode:** `production` to see only ~30 of the 40 tests run.
+
+> **Note:** PTSv1 quick runs build history that carries over to the full branch (`patch-robot-demo-ptsv1`). Once the model is warmed up here, proceed to Scenario B for the full 451-test demo.
 
 ---
 
@@ -521,12 +569,22 @@ Smart Tests offers three types of optimization targets, each suited for differen
 
 Repeat any production run with a different `target` to see how aggressiveness affects savings:
 
-| Target | Runtime (full suite) | Savings |
+**Full suite branches (`patch-robot-demo-ptsv2` / `patch-robot-demo-ptsv1`, 451 tests, ~31 min baseline):**
+
+| Target | Runtime | Savings |
 |---|---|---|
 | `--target 75%` | ~23 min | ~25% |
 | `--target 70%` | ~21 min | ~32% |
 | `--target 50%` | ~15 min | ~50% |
 | `--target 30%` | ~9 min | ~70% (higher risk) |
+
+**Quick branch (`patch-robot-demo-quick`, 40 tests, ~1-2 min baseline):**
+
+| Target | Tests run | Savings |
+|---|---|---|
+| `--target 75%` | ~30 tests | ~25% |
+| `--target 50%` | ~20 tests | ~50% |
+| `--target 30%` | ~12 tests | ~70% (higher risk) |
 
 > **Warning:** Lower targets run fewer tests and save more time, but increase the chance of missing a failure. Start conservative (`--target 75%`) and reduce only after validating accuracy over multiple sessions.
 
@@ -536,14 +594,15 @@ Repeat any production run with a different `target` to see how aggressiveness af
 
 You've completed:
 
-- [x] Forked the repository and configured your Smart Tests tokens
-- [x] Established baseline runtime with `tests-robot-no-smarttests.yml`
-- [x] Ran PTSv2 observation mode — saw projected savings in Unify on the first run
-- [x] Ran PTSv2 production mode — realized actual time savings
+- [x] Forked the repository and configured `PTSv1_TOKEN` and `PTSv2_TOKEN` secrets
+- [x] Established baseline runtime (~31 min) with `tests-robot-no-smarttests.yml` on `patch-robot-demo-ptsv2` or `patch-robot-demo-ptsv1`
+- [x] Ran PTSv2 observation (1 run) — saw projected savings in Unify immediately
+- [x] Ran PTSv2 production — realized actual 25% time savings
+- [x] Ran PTSv2 quick on `patch-robot-demo-quick` — saw predictions in under 2 minutes
 - [x] Warmed up PTSv1 model with 5-7 quick runs on `patch-robot-demo-quick`
-- [x] Ran PTSv1 observation mode — confirmed predictions appeared in Unify
-- [x] Ran PTSv1 production mode — realized actual time savings
-- [x] Viewed session results in CloudBees Unify and understood projected vs. realized savings
+- [x] Ran PTSv1 observation on `patch-robot-demo-ptsv1` — confirmed predictions appeared in Unify
+- [x] Ran PTSv1 production — realized actual 25% time savings
+- [x] Understood the difference: observation shows projected savings; production realizes them
 
 **Timing comparison at 75% target (full suite, after model is ready):**
 
