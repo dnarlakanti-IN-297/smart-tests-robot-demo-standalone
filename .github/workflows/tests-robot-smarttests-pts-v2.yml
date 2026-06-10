@@ -8,7 +8,7 @@ name: Robot Framework Tests
 
 on:
   push:
-    branches: [ main, patch-robot-demo ]
+    branches: [ main, patch-robot-demo-ptsv2 ]
     paths:
       - 'app/**'
       - 'tests/robot/**'
