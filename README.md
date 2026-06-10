@@ -52,7 +52,7 @@ Go to **Settings > Secrets and variables > Actions > New repository secret**:
 
 PTSv1 needs historical run data before it can make predictions. Use `patch-robot-demo-quick` (40 tests, 0ms latency) to build history faster:
 
-1. Check out `patch-robot-demo-quick` and run `tests-robot-smarttests-pts-v1.yml` in **observation** mode
+1. Check out `patch-robot-demo-quick` and run **Robot Framework Tests (Quick - PTSv1)** in **observation** mode
 2. Make a small commit (add a blank line to any source file), push, and run again
 3. Repeat 5-7 times — the session view in CloudBees Unify will show "No subset requests" until the model has enough history
 
@@ -60,7 +60,7 @@ PTSv1 needs historical run data before it can make predictions. Use `patch-robot
 
 Once the model has history from `patch-robot-demo-quick`, run this branch:
 
-1. Go to **Actions > Robot Framework Tests (PTSv1)** (`tests-robot-smarttests-pts-v1.yml`)
+1. Go to **Actions > Robot Framework Tests (Quick - PTSv1)** (`tests-robot-smarttests-pts-v1.yml`)
 2. Set **mode:** `observation`, **target:** `--target 75%`
 3. View predictions at https://cloudbees.io > Smart Tests > Sessions
 
