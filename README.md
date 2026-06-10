@@ -22,7 +22,7 @@
 | Simulated latency | 500ms per API call |
 | Baseline runtime | ~31 minutes |
 | Predictions available | From first run |
-| GitHub secret | `SMART_TESTS_TOKEN` |
+| GitHub secret | `PTSv2_TOKEN` |
 | Workflow | `tests-robot-smarttests-pts-v2.yml` |
 
 ---
@@ -40,7 +40,7 @@ Go to **Settings > Secrets and variables > Actions > New repository secret**:
 
 | Secret name | Value |
 |---|---|
-| `SMART_TESTS_TOKEN` | Token from your PTSv2-enabled org/workspace in CloudBees Unify |
+| `PTSv2_TOKEN` | Token from your PTSv2-enabled org/workspace in CloudBees Unify |
 
 ### 3. Run the baseline workflow
 

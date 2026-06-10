@@ -44,9 +44,10 @@ jobs:
     name: Robot Framework API Tests (GitHub App - v2.11.1)
     runs-on: ubuntu-latest
     env:
-      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      SMART_TESTS_TOKEN: ${{ secrets.PTSv2_TOKEN }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 80%' }}
+      SIMULATED_LATENCY_MS: 200
 
     steps:
     - name: Checkout code
@@ -85,7 +86,7 @@ jobs:
 
     - name: Record build with Smart Tests
       run: |
-        smart-tests record build --build ${{ github.run_id }} --source ${{ github.repository }}=${{ github.workspace }}
+        smart-tests record build --build ${{ github.run_id }} --source ${{ github.workspace }}
 
     - name: Record session with Smart Tests
       run: |

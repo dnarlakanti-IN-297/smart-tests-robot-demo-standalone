@@ -817,7 +817,8 @@ skip_covered = false
 ### 5.2 Environment Variables
 
 **Required Secret:**
-- `SMART_TESTS_TOKEN` - CloudBees Smart Tests API token
+- `PTSv2_TOKEN` - Token for PTSv2 (AI-based) engine
+- `PTSv1_TOKEN` - Token for PTSv1 (ML-based) engine
 
 **Automatic Variables:**
 - `CI` - Set by GitHub Actions
@@ -1806,12 +1807,12 @@ cd patches            # Demo patches
 
 **Issue: No test results visible in CloudBees Smart Tests dashboard**
 - **Cause**: Multiple possible causes
-  - SMART_TESTS_TOKEN not configured correctly
+  - PTSv2_TOKEN (or PTSv1_TOKEN) not configured correctly
   - PTSv2 not enabled
   - Network connectivity issues
   - Organization permissions
 - **Solution**:
-  - Verify `SMART_TESTS_TOKEN` secret in GitHub repository settings
+  - Verify `PTSv2_TOKEN` (or `PTSv1_TOKEN`) secret in GitHub repository settings
   - Check workflow logs for Smart Tests CLI errors
   - Verify PTSv2 is enabled for your organization
   - Contact #team-smart-tests-se for assistance

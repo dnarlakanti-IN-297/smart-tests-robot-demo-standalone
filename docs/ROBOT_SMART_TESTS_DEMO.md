@@ -276,7 +276,7 @@ This works because:
 **Check:**
 1. Is `junit.xml` being generated? (Check workflow artifacts)
 2. Is Smart Tests recording step succeeding?
-3. Is `SMART_TESTS_TOKEN` secret set correctly?
+3. Is `PTSv2_TOKEN` (or `PTSv1_TOKEN`) secret set correctly?
 4. Check CloudBees UI for organization/repository setup
 
 **Debug:**

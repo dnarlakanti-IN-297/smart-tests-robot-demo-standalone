@@ -245,7 +245,7 @@ gh workflow run tests-robot.yml --ref patch-robot-demo \
 ### Issue: Dashboard not showing test sessions
 **Solution:** 
 1. Check build was triggered on `patch-robot-demo` branch
-2. Verify `SMART_TESTS_TOKEN` secret is set
+2. Verify `PTSv2_TOKEN` (or `PTSv1_TOKEN`) secret is set
 3. Refresh browser / clear cache
 4. Check GitHub Actions logs for recording errors
 
