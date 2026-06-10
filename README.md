@@ -56,7 +56,7 @@ Go to **Settings > Secrets and variables > Actions > New repository secret**.
 
 1. Go to **Actions > Robot Framework Tests (No Smart Tests - Baseline)**
 2. Run workflow on your chosen branch
-3. Note the runtime (~31 minutes) — this is your reference
+3. Note the runtime (~31 minutes on full branches, ~1-2 minutes on `patch-robot-demo-quick`) — this is your reference
 
 ### 4. Run Smart Tests in observation mode
 
