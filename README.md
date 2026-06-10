@@ -21,7 +21,7 @@
 | Simulated latency | 0ms | 0ms |
 | Run time | ~1-2 minutes | ~1-2 minutes |
 | GitHub secret | `PTSv1_TOKEN` | `PTSv2_TOKEN` |
-| Workflow | `tests-robot-smarttests-pts-v1.yml` | `tests-robot-smarttests-pts-v2-quick.yml` |
+| Workflow | `tests-robot-smarttests-pts-v1.yml` | `tests-robot-smarttests-pts-v2.yml` |
 | Predictions | After ~5-7 runs | From first run |
 
 ---
@@ -44,12 +44,12 @@ Add only the secret that matches your org's enabled version:
 ### 3. Run the appropriate workflow
 
 **PTSv2:**
-1. Go to **Actions > Robot Framework Tests PTSv2 (Quick)**
+1. Go to **Actions > Robot Framework Tests (Quick - PTSv2)**
 2. Set **mode:** `observation`, **target:** `--target 75%`
 3. Predictions appear from the first run
 
 **PTSv1:**
-1. Go to **Actions > Robot Framework Tests (PTSv1)**
+1. Go to **Actions > Robot Framework Tests (Quick - PTSv1)**
 2. Set **mode:** `observation`, **target:** `--target 75%`
 3. Make a small commit, push, repeat 5-7 times until predictions appear
 
