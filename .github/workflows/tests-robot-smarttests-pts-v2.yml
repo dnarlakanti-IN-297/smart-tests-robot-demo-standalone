@@ -1,4 +1,4 @@
-name: Robot Framework Tests
+name: Robot Framework Tests (PTSv2)
 
 # Smart Tests Integration for Robot Framework:
 # ✅ Uses native Robot Framework profile (fixed in smart-tests-cli v2.11.1)
