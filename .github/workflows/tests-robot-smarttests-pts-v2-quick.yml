@@ -33,7 +33,7 @@ jobs:
     name: Robot Framework Tests PTSv2 Quick (40 tests)
     runs-on: ubuntu-latest
     env:
-      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      SMART_TESTS_TOKEN: ${{ secrets.PTSv2_TOKEN }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
       SIMULATED_LATENCY_MS: 0
