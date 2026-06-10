@@ -22,7 +22,7 @@
 | Simulated latency | 500ms per API call |
 | Baseline runtime | ~31 minutes |
 | Predictions available | After ~5-7 observation runs |
-| GitHub secret | `PTSv2_TOKEN` |
+| GitHub secret | `PTSv1_TOKEN` |
 | Workflow | `tests-robot-smarttests-pts-v1.yml` |
 
 ---
@@ -60,9 +60,11 @@ PTSv1 needs historical run data before it can make predictions. Use `patch-robot
 
 Once the model has history from `patch-robot-demo-quick`, run this branch:
 
-1. Go to **Actions > Robot Framework Tests (Quick - PTSv1)** (`tests-robot-smarttests-pts-v1.yml`)
+1. Go to **Actions > Robot Framework Tests (PTSv1)** (`tests-robot-smarttests-pts-v1.yml`)
 2. Set **mode:** `observation`, **target:** `--target 75%`
 3. View predictions at https://cloudbees.io > Smart Tests > Sessions
+
+> **Also on `patch-robot-demo-quick`:** Run **Robot Framework Tests (Quick - PTSv2)** to see how PTSv2 gives predictions from the very first run — useful for side-by-side comparison with PTSv1 warm-up.
 
 ---
 
