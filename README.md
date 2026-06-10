@@ -50,11 +50,13 @@ Go to **Settings > Secrets and variables > Actions > New repository secret**:
 
 ### 4. Run Smart Tests in observation mode
 
-1. Go to **Actions > Robot Framework Tests** (`tests-robot-smarttests-pts-v2.yml`)
+1. Go to **Actions > Robot Framework Tests (PTSv2)** (`tests-robot-smarttests-pts-v2.yml`)
 2. Set **mode:** `observation`, **target:** `--target 75%`
 3. View predictions at https://cloudbees.io > Smart Tests > Sessions
 
 PTSv2 predictions appear from the first run. Repeat a few times with small commits to see the subset shrink as the AI refines predictions.
+
+> **Quick demo option:** Use `patch-robot-demo-quick` (40 tests, 0ms) for fast ~1-2 minute runs. Run **Robot Framework Tests (Quick - PTSv2)** on that branch to see PTSv2 predictions in under 2 minutes.
 
 ---
 
