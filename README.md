@@ -22,8 +22,8 @@
 | Simulated latency | 500ms per API call |
 | Baseline runtime | ~31 minutes |
 | Predictions available | After ~5-7 observation runs |
-| GitHub secret | `LAUNCHABLE_TOKEN` (mapped to `SMART_TESTS_TOKEN` in workflow) |
-| Workflow | `tests-robot-launchable-pts-v1.yml` |
+| GitHub secret | `SMART_TESTS_TOKEN` |
+| Workflow | `tests-robot-smarttests-pts-v1.yml` |
 
 ---
 
@@ -40,9 +40,7 @@ Go to **Settings > Secrets and variables > Actions > New repository secret**:
 
 | Secret name | Value |
 |---|---|
-| `LAUNCHABLE_TOKEN` | Token from your PTSv1-enabled org/workspace in CloudBees Unify |
-
-The workflow maps `LAUNCHABLE_TOKEN` → `SMART_TESTS_TOKEN` internally so the CLI reads the same variable.
+| `SMART_TESTS_TOKEN` | Token from your PTSv1-enabled org/workspace in CloudBees Unify |
 
 ### 3. Run the baseline workflow
 
@@ -54,7 +52,7 @@ The workflow maps `LAUNCHABLE_TOKEN` → `SMART_TESTS_TOKEN` internally so the C
 
 PTSv1 needs historical run data before it can make predictions. Use `patch-robot-demo-quick` (40 tests, 0ms latency) to build history faster:
 
-1. Check out `patch-robot-demo-quick` and run `tests-robot-launchable-pts-v1.yml` in **observation** mode
+1. Check out `patch-robot-demo-quick` and run `tests-robot-smarttests-pts-v1.yml` in **observation** mode
 2. Make a small commit (add a blank line to any source file), push, and run again
 3. Repeat 5-7 times — the session view in CloudBees Unify will show "No subset requests" until the model has enough history
 
@@ -62,7 +60,7 @@ PTSv1 needs historical run data before it can make predictions. Use `patch-robot
 
 Once the model has history from `patch-robot-demo-quick`, run this branch:
 
-1. Go to **Actions > Robot Framework Tests (Launchable)** (`tests-robot-launchable-pts-v1.yml`)
+1. Go to **Actions > Robot Framework Tests (PTSv1)** (`tests-robot-smarttests-pts-v1.yml`)
 2. Set **mode:** `observation`, **target:** `--target 75%`
 3. View predictions at https://cloudbees.io > Smart Tests > Sessions
 
