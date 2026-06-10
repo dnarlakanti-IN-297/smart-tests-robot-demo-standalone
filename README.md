@@ -20,7 +20,7 @@
 | Tests | 40 (`auth_edge_cases.robot`) | 40 (`auth_edge_cases.robot`) |
 | Simulated latency | 0ms | 0ms |
 | Run time | ~1-2 minutes | ~1-2 minutes |
-| GitHub secret | `PTSv2_TOKEN` | `SMART_TESTS_TOKEN` |
+| GitHub secret | `PTSv1_TOKEN` | `PTSv2_TOKEN` |
 | Workflow | `tests-robot-smarttests-pts-v1.yml` | `tests-robot-smarttests-pts-v2-quick.yml` |
 | Predictions | After ~5-7 runs | From first run |
 
