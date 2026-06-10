@@ -1,160 +1,155 @@
-# Smart Tests Demo: Issue Tracker Application
-<!-- Updated: 2026-06-04 -->
+# Smart Tests Demo: Robot Framework
 
-![Tests](https://github.com/xgalanxhi/issues-tracker-app/actions/workflows/tests.yml/badge.svg)
 ![Python](https://img.shields.io/badge/python-3.13+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Smart Tests](https://img.shields.io/badge/Smart%20Tests-Enabled-brightgreen.svg)
+![Robot Framework](https://img.shields.io/badge/Robot%20Framework-7.0+-orange.svg)
+![Smart Tests](https://img.shields.io/badge/Smart%20Tests-PTSv1%20%7C%20PTSv2-brightgreen.svg)
 
-**A demonstration repository showcasing [CloudBees Smart Tests](https://www.cloudbees.com/products/smart-tests) predictive test selection capabilities with a Python application and pytest test suite.**
+Demo repository for **CloudBees Smart Tests** predictive test selection with Robot Framework. Uses `smart-tests-cli==2.11.2` for both PTSv1 (ML-based) and PTSv2 (AI-based) — the CLI is identical for both versions; the token determines which prediction engine runs.
 
+**Adoption Journey Guide:** [ISP_SMART_TESTS_ROBOT.md](./ISP_SMART_TESTS_ROBOT.md)
 
-**Ready to see Smart Tests in action? Start with [QUICKSTART GUIDE](./QUICKSTART.md)!** 🚀
+---
 
-This repository contains a fully functional Issue Tracker application built with FastAPI, complete with 140+ tests (unit, integration, and E2E) that demonstrate how Smart Tests uses AI to intelligently predict and select only the relevant tests based on code changes, reducing CI execution time by 50% or more.
+## What This Repository Demonstrates
 
-## 🎯 What This Repository Demonstrates
+- **PTSv1 (ML-based):** Builds predictions from historical test run data. Requires 3-5 observation runs before predictions appear.
+- **PTSv2 (AI-based):** Uses OpenAI to predict affected tests from the first run. No warm-up required.
+- **Identical CLI for both:** `smart-tests-cli==2.11.2` — only the token changes.
+- **451 Robot Framework tests** with 500ms simulated API latency (~31 min baseline) to demonstrate realistic enterprise test suite savings.
+- **Side-by-side comparison:** Baseline workflow (no Smart Tests) runs in parallel for direct runtime comparison.
 
-- **AI-Powered Test Selection**: Smart Tests analyzes code changes and predicts which tests are affected
-- **Observation Mode**: All tests run while Smart Tests validates prediction accuracy in the UI
-- **Multi-Suite Support**: Unit, integration, and E2E tests all integrated with Smart Tests
-- **CI/CD Integration**: GitHub Actions workflows with complete Smart Tests integration
-- **Demo Patches**: Pre-built code changes that simulate real development scenarios with test failures
+---
 
-## 🚀 Get Started
+## Demo Branches
 
-**Choose your path based on what you want to do:**
+| Branch | Version | Tests | Latency | Workflow |
+|---|---|---|---|---|
+| `patch-robot-demo` | PTSv2 (AI-based) | 451 | 500ms simulated | `tests-robot.yml` |
+| `patch-robot-demo-v1-launchable` | PTSv1 (ML-based) | 451 | 500ms simulated | `tests-robot-launchable.yml` |
+| `patch-launchable-quick` | PTSv1 quick debug | 40 | 0ms | `tests-robot-launchable.yml` |
 
-<details>
-<summary><strong>🎬 I Want to Run the Smart Tests Demo</strong></summary>
+Use `patch-launchable-quick` during initial PTSv1 setup — 40 tests with no latency gives fast feedback while warming up the ML model.
 
-<br>
+---
 
-**→ [QUICKSTART.md](./QUICKSTART.md)** - Complete step-by-step guide to:
-- Fork the repository and set up Smart Tests
-- Run baseline tests and view results in CloudBees
-- Apply demo patches that break tests
-- See how Smart Tests predicts which tests will fail
-- Analyze prediction accuracy and time savings
+## Quick Start
 
-**Time Required:** 15-20 minutes
-**Prerequisites:** GitHub account, CloudBees account (free tier)
+### 1. Fork and enable GitHub Actions
 
-</details>
+1. Fork this repository to your GitHub account
+2. Go to **Actions** tab and enable workflows if prompted
 
-<details>
-<summary><strong>🔧 I Want to Run the Application Locally</strong></summary>
+### 2. Add your Smart Tests token as a GitHub secret
 
-<br>
+You need one token, created from the org/workspace where your version is enabled:
 
-**→ [TECHNICAL_REFERENCE.md - Section 7: Local Development Setup](./TECHNICAL_REFERENCE.md#7-local-development-setup)**
+| Your org version | Secret name | Token source |
+|---|---|---|
+| PTSv2 | `SMART_TESTS_TOKEN` | PTSv2-enabled org/workspace |
+| PTSv1 | `LAUNCHABLE_TOKEN` | PTSv1-enabled org/workspace |
 
-Quick commands:
+Go to **Settings > Secrets and variables > Actions > New repository secret**.
+
+### 3. Run the baseline workflow
+
+1. Go to **Actions > Robot Framework Tests (No Smart Tests - Baseline)**
+2. Run workflow on your chosen branch
+3. Note the runtime (~31 minutes) — this is your reference
+
+### 4. Run Smart Tests in observation mode
+
+1. Go to **Actions** and select the workflow matching your version
+2. Run with **mode:** `observation`, **target:** `--target 75%`
+3. View results at https://cloudbees.io > Smart Tests > Sessions
+
+**PTSv1:** Repeat 5-7 times with small commits to warm up the ML model. Status will show "No subset requests" until the model has enough history — this is expected.
+
+**PTSv2:** Predictions appear from the first run.
+
+---
+
+## Application
+
+FastAPI issue tracker application (Python 3.13, SQLAlchemy, SQLite). The 500ms simulated API latency on the demo branches brings the 451-test Robot Framework suite to ~31 minutes, simulating a realistic enterprise test suite.
+
 ```bash
-# Clone and setup
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements-dev.txt
-
-# Initialize database
-make db-init && make migrate && make seed
-
-# Run application
-make run
+# Local setup
+python -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+python -m app.db.init_db && python -m app.db.seed_data
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Application runs at: http://localhost:8000
+Test users: `admin/admin123`, `john/password123`, `jane/password123`
 
-</details>
+---
 
-<details>
-<summary><strong>📚 I Want Complete Technical Documentation</strong></summary>
+## Robot Framework Tests
 
-<br>
-
-**→ [TECHNICAL_REFERENCE.md](./TECHNICAL_REFERENCE.md)** - Comprehensive reference covering:
-1. Application Specifications (tech stack, dependencies, configuration)
-2. Database Schema and Models (all 6 models documented)
-3. API Endpoints (complete endpoint inventory)
-4. Testing Architecture (140+ tests, fixtures, configuration)
-5. GitHub Actions and CI/CD (workflow specifications)
-6. Smart Tests Integration (complete workflow documentation)
-7. Local Development Setup (step-by-step guide)
-8. Docker Deployment (containerization guide)
-9. Code Quality and Standards (formatting, linting, style)
-10. Project Structure (directory tree, architecture)
-
-</details>
-
-<details>
-<summary><strong>🧪 I Want to Understand the Test Suite</strong></summary>
-
-<br>
-
-**→ [TECHNICAL_REFERENCE.md - Section 4: Testing Architecture](./TECHNICAL_REFERENCE.md#4-testing-architecture)**
-
-Test organization:
-- **Unit Tests**: 6 files testing services
-- **Integration Tests**: 5 files testing API endpoints
-- **E2E Tests**: 3 files with Playwright browser automation
-
-Run tests:
 ```bash
-make test              # Unit + integration
-make test-e2e         # End-to-end tests
-make test-all         # All tests
+pip install -r requirements-robot.txt
+
+# Run all tests
+robot --outputdir test-results tests/robot/
+
+# Run specific suite
+robot --outputdir test-results tests/robot/api/
+
+# Dry-run (enumerate tests without executing)
+robot --dryrun --outputdir /tmp/robot-dryrun tests/robot/
 ```
 
-</details>
+Test structure:
 
-<details>
-<summary><strong>🔬 I Want to Understand Smart Tests Integration</strong></summary>
+```
+tests/robot/
+  api/                   # API endpoint tests
+    auth_tests.robot
+    projects_tests.robot
+    issues_tests.robot
+  data_driven/           # Data-driven edge case tests
+    auth_edge_cases.robot
+  resources/             # Shared keywords and variables
+```
 
-<br>
+---
 
-**→ [TECHNICAL_REFERENCE.md - Section 6: Smart Tests Integration](./TECHNICAL_REFERENCE.md#6-smart-tests-integration)**
+## CI Workflows
 
-Learn about:
-- How Smart Tests CLI integrates with pytest
-- The 6-step workflow (record build → create subset → run tests → record results)
-- Observation mode vs production mode
-- JUnit XML configuration
-- Viewing results in CloudBees platform
+| Workflow | Trigger | Purpose |
+|---|---|---|
+| `tests-robot.yml` | `patch-robot-demo` branch | PTSv2 Smart Tests integration |
+| `tests-robot-launchable.yml` | `patch-robot-demo-v1-launchable`, `patch-launchable-quick` | PTSv1 Smart Tests integration |
+| `tests-robot-no-smarttests.yml` | Manual / any branch | Baseline — full suite, no Smart Tests |
 
-</details>
+Both Smart Tests workflows use the same seven-step pattern:
 
-<details>
-<summary><strong>🎨 I Want to Create New Demo Patches</strong></summary>
+```
+smart-tests record commit
+smart-tests record build
+smart-tests record session  →  session.txt
+robot --dryrun --outputdir /tmp/robot-dryrun  →  output.xml
+smart-tests subset robot --session @session.txt ... /tmp/robot-dryrun/output.xml
+eval robot ... $SUBSET_CONTENT tests/robot/
+smart-tests record tests robot --session @session.txt test-results/output.xml
+```
 
-<br>
+---
 
-**→ [patches/CREATING_NEW_PATCHES.md](./patches/CREATING_NEW_PATCHES.md)** - Complete guide including:
-- What makes a good demo patch
-- Step-by-step patch creation process
-- Testing and validation
-- 6+ example patch ideas
+## Expected Results (Reference)
 
-**→ [patches/AI_PATCH_GENERATION_PROMPT.txt](./patches/AI_PATCH_GENERATION_PROMPT.txt)** - Ready-to-use AI prompt for generating patches with Claude/ChatGPT
+| Metric | Value |
+|---|---|
+| Full suite baseline | ~31 minutes (451 tests, 500ms latency) |
+| Smart Tests at 75% target | ~23 minutes (~25% savings) |
+| Smart Tests at 50% target | ~15 minutes (~50% savings) |
+| PTSv1 warm-up runs needed | ~6 runs on `patch-launchable-quick` (40 tests) |
+| PTSv1 first prediction (40 tests, 75%) | Subset: 30, Remainder: 10 |
 
-**→ [patches/README.md](./patches/README.md)** - Documentation of existing patches
+---
 
-</details>
+## Additional Resources
 
-<details>
-<summary><strong>🔄 I Want to Understand the CI/CD Workflows</strong></summary>
-
-<br>
-
-**→ [TECHNICAL_REFERENCE.md - Section 5: GitHub Actions and CI/CD](./TECHNICAL_REFERENCE.md#5-github-actions-and-cicd)**
-
-GitHub Actions workflows:
-- **Tests Workflow**: Runs unit, integration, and E2E tests with Smart Tests V2
-- **Apply Demo Patch Workflow**: Applies breaking changes to demonstrate CI behavior
-
-Both workflows fully documented with step-by-step breakdowns.
-
-</details>
-
-
-
+- Adoption Journey Guide: [ISP_SMART_TESTS_ROBOT.md](./ISP_SMART_TESTS_ROBOT.md)
+- CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
