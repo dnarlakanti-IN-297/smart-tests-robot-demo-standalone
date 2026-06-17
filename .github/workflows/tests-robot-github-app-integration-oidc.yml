@@ -55,8 +55,8 @@ jobs:
       # GitHub OIDC auth — replaces SMART_TESTS_TOKEN secret
       EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
       # Workspace identity — required when using OIDC (token no longer encodes org/workspace)
-      SMART_TESTS_ORGANIZATION: 8c8df396-03d5-4d10-9a7d-151e00947166
-      SMART_TESTS_WORKSPACE: 39a699bc-7ec9-4a84-84ac-83dfe569bc4d
+      SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION }}
+      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 80%' }}
       SIMULATED_LATENCY_MS: 200
