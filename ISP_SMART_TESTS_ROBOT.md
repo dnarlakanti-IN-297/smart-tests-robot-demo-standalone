@@ -1124,14 +1124,22 @@ Projected Savings:
 
 ## GitHub App + OIDC Authentication
 
+> **Scope note:** This section covers GitHub OIDC for Smart Tests CLI authentication on GitHub Actions — specifically the `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH` flag in `smart-tests-cli`. This is different from the OIDC configuration used with CloudBees CI or AWS-based workflows, where OIDC is the only supported authentication method for the runner itself. The two are unrelated — this is purely about how the Smart Tests CLI proves its identity to the Smart Tests backend.
+
 The demo repository includes an alternative workflow (`tests-robot-github-app-integration-oidc.yml`) that authenticates using GitHub OIDC instead of a static API token secret. This is the recommended approach for production use — it eliminates long-lived secrets and uses short-lived, verifiable tokens issued by GitHub.
+
+**How authentication works in each approach:**
+
+In the token-based workflow, every `smart-tests` CLI call reads the `SMART_TESTS_TOKEN` environment variable and sends it as a bearer token with each API request to the Smart Tests backend. The token is a long-lived credential stored as a GitHub secret.
+
+With OIDC, setting `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1` tells the CLI to skip the token entirely. Instead, GitHub issues a short-lived OIDC JWT for the job (via the `id-token: write` permission), and the CLI presents that to the Smart Tests backend to prove it is running in a trusted GitHub Actions context. No secret is stored anywhere — the token exists only for the duration of the job.
 
 ### What Changes vs. Token-Based Auth
 
 | | Token-based (`SMART_TESTS_TOKEN`) | GitHub OIDC |
 |---|---|---|
 | **Secret required** | Yes — `PTSv1_TOKEN` or `PTSv2_TOKEN` | No |
-| **Auth mechanism** | Static API key | Short-lived OIDC token signed by GitHub |
+| **Auth mechanism** | Static API key sent with every CLI call | Short-lived OIDC token signed by GitHub, valid for one job |
 | **Rate limit risk** | GitHub API calls (can hit limits) | No GitHub API calls |
 | **Workflow file** | `tests-robot-smarttests-pts-v2.yml` etc. | `tests-robot-github-app-integration-oidc.yml` |
 
@@ -1139,7 +1147,7 @@ The demo repository includes an alternative workflow (`tests-robot-github-app-in
 
 Three additions to the standard workflow:
 
-**1. Job-level permissions block** (allows GitHub to issue an OIDC token):
+**1. Job-level permissions block** (allows GitHub to issue an OIDC token for this job):
 ```yaml
 permissions:
   id-token: write
@@ -1154,14 +1162,16 @@ env:
   SMART_TESTS_WORKSPACE: <YOUR_WORKSPACE_UUID>
 ```
 
-> **Important:** `SMART_TESTS_ORGANIZATION` and `SMART_TESTS_WORKSPACE` must be the **UUID values**, not the display names. Find them in CloudBees Unify under **Admin Settings > Organization Profile** (Organization ID) and the sub-org settings page (Organization ID of the workspace).
+> **Important:** `SMART_TESTS_ORGANIZATION` and `SMART_TESTS_WORKSPACE` must be the **UUID values**, not the display names. The Smart Tests API resolves identity by UUID. Find them in CloudBees Unify under **Admin Settings > Organization Profile** (Organization ID field) and the sub-org settings page.
 
-**3. GitHub App action** (uploads results via the GitHub App):
+**3. GitHub App action** (uploads test result artifacts for the GitHub App to process):
 ```yaml
 - name: Store Test Results for Smart Tests (GitHub App)
   if: always()
   uses: cloudbees-oss/smart-tests-results-upload-action@v1
 ```
+
+> **What this action does:** It is NOT a replacement for `smart-tests record tests`. It uploads test result files (XML, JSON, etc.) as GitHub Actions artifacts so the Smart Tests GitHub App can read them independently. The `smart-tests record tests robot` CLI step still runs separately and is still required — the two serve different purposes. The action requires no parameters; it auto-discovers result files by common patterns (`**/*.xml`, `**/test-results/**`, etc.).
 
 All `smart-tests record` and `smart-tests subset` CLI steps are identical to the token-based workflow — only the authentication mechanism changes.
 
