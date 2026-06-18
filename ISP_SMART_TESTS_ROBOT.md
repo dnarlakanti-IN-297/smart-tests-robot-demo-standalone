@@ -1127,7 +1127,18 @@ Projected Savings:
 
 > **Scope note:** This section covers GitHub OIDC for Smart Tests CLI authentication on GitHub Actions — specifically the `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH` flag in `smart-tests-cli`. This is different from the OIDC configuration used with CloudBees CI or AWS-based workflows, where OIDC is the only supported authentication method for the runner itself. The two are unrelated — this is purely about how the Smart Tests CLI proves its identity to the Smart Tests backend.
 
-The demo repository includes an alternative workflow (`tests-robot-github-app-integration-oidc.yml`) that authenticates using GitHub OIDC instead of a static API token secret. This is the recommended approach for production use — it eliminates long-lived secrets and uses short-lived, verifiable tokens issued by GitHub.
+The demo repository includes per-version OIDC workflows that authenticate using GitHub OIDC instead of a static API token secret. This is the recommended approach for production use — it eliminates long-lived secrets and uses short-lived, verifiable tokens issued by GitHub.
+
+### OIDC Workflows in This Repository
+
+| Workflow | Branch | Tests | Latency |
+|---|---|---|---|
+| `tests-robot-github-app-integration-oidc-v2.yml` | `patch-robot-demo-ptsv2` | 451 | 500ms |
+| `tests-robot-github-app-integration-oidc-v1.yml` | `patch-robot-demo-ptsv1` | 451 | 500ms |
+| `tests-robot-github-app-integration-oidc-v2-quick.yml` | `patch-robot-demo-quick` | 40 | 0ms |
+| `tests-robot-github-app-integration-oidc-v1-quick.yml` | `patch-robot-demo-quick` | 40 | 0ms |
+
+Always select the matching branch when triggering manually from the GitHub Actions UI.
 
 **How authentication works in each approach:**
 
@@ -1141,8 +1152,7 @@ With OIDC, setting `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1` tells the CLI to ski
 |---|---|---|
 | **Secret required** | Yes — `PTSv1_TOKEN` or `PTSv2_TOKEN` | No |
 | **Auth mechanism** | Static API key sent with every CLI call | Short-lived OIDC token signed by GitHub, valid for one job |
-| **Rate limit risk** | GitHub API calls (can hit limits) | No GitHub API calls |
-| **Workflow file** | `tests-robot-smarttests-pts-v2.yml` etc. | `tests-robot-github-app-integration-oidc.yml` |
+| **Workflow files** | `tests-robot-smarttests-pts-v1.yml` / `pts-v2.yml` etc. | `tests-robot-github-app-integration-oidc-v1.yml` / `v2.yml` etc. |
 
 ### Required Workflow Changes
 
@@ -1156,14 +1166,26 @@ permissions:
 ```
 
 **2. Environment variables** (replace the token secret):
+
+For PTSv2 workflows:
 ```yaml
 env:
   EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
-  SMART_TESTS_ORGANIZATION: <YOUR_ORG_UUID>
-  SMART_TESTS_WORKSPACE: <YOUR_WORKSPACE_UUID>
+  SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v2 }}
+  SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_v2 }}
 ```
 
-> **Important:** `SMART_TESTS_ORGANIZATION` and `SMART_TESTS_WORKSPACE` must be the **UUID values**, not the display names. The Smart Tests API resolves identity by UUID. Find them in CloudBees Unify under **Admin Settings > Organization Profile** (Organization ID field) and the sub-org settings page.
+For PTSv1 workflows:
+```yaml
+env:
+  EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
+  SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v1 }}
+  SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_v1 }}
+```
+
+The `_v1` and `_v2` suffix allows both PTSv1 and PTSv2 workspaces to coexist in the same repository without conflicting. Set these as **repository variables** (not secrets) under **Settings > Secrets and variables > Actions > Variables**.
+
+> **Important:** The variable values must be **UUIDs**, not display names. The Smart Tests API resolves identity by UUID. Using display names (e.g. `ps-lab` or `anudeep`) returns `401 Unauthorized`. Find the UUIDs in CloudBees Unify under **Admin Settings > Organization Profile** (Organization ID field) and the sub-org settings page.
 
 **3. GitHub App action** (uploads test result artifacts for the GitHub App to process):
 ```yaml
@@ -1174,10 +1196,11 @@ env:
 
 > **What this action does:** It is NOT a replacement for `smart-tests record tests`. It uploads test result files (XML, JSON, etc.) as GitHub Actions artifacts so the Smart Tests GitHub App can read them independently. The `smart-tests record tests robot` CLI step still runs separately and is still required — the two serve different purposes. The action requires no parameters; it auto-discovers result files by common patterns (`**/*.xml`, `**/test-results/**`, etc.).
 
-All `smart-tests record` and `smart-tests subset` CLI steps are identical to the token-based workflow — only the authentication mechanism changes.
+All `smart-tests record` and `smart-tests subset` CLI steps are identical to the token-based workflows — only the authentication mechanism changes.
 
 ### Prerequisites
 
 - **GitHub App installed:** Install `cloudbees-oss/smart-tests-results-upload-action` on the repository via GitHub Apps settings
-- **OIDC enabled for your workspace:** Contact the CloudBees Smart Tests team to enable OIDC tokenless auth for your org/workspace UUID. This is a backend enablement — the workflow will return `401 Unauthorized` until it is activated.
+- **OIDC enabled for your workspace:** Contact the CloudBees Smart Tests team to enable OIDC tokenless auth for your org/workspace UUIDs. This is a backend enablement — the workflow will return `401 Unauthorized` until it is activated.
+- **Repository variables set:** Add `SMART_TESTS_ORGANIZATION_v1`, `SMART_TESTS_WORKSPACE_v1`, `SMART_TESTS_ORGANIZATION_v2`, `SMART_TESTS_WORKSPACE_v2` as repository variables with UUID values
 - **No `SMART_TESTS_TOKEN` secret needed:** Remove it or leave it unused — the OIDC token replaces it entirely
