@@ -434,58 +434,25 @@ smart-tests --dry-run record session --build 1234 --test-suite test
 
 ## Example Workflow: Token-Based Auth
 
-Standard approach. A `SMART_TESTS_TOKEN` repository secret is required. Used by all four main demo workflows in this repository (`tests-robot-smarttests-pts-v2.yml` etc.).
+Standard approach. Set `SMART_TESTS_TOKEN` as a repository secret. Used by all four main demo workflows in this repository (`tests-robot-smarttests-pts-v2.yml` etc.).
+
+The Smart Tests steps are the same in every job — only the `env:` block changes between token and OIDC auth. Application setup (Python, Java, dependencies, database) is abbreviated below.
 
 ```yaml
-name: Robot Framework Tests (PTSv2)
-
-on:
-  workflow_dispatch:
-    inputs:
-      mode:
-        description: 'Smart Tests mode'
-        required: true
-        type: choice
-        default: 'observation'
-        options:
-          - observation
-          - production
-      target:
-        description: 'Optimization target (e.g. --target 75%)'
-        required: false
-        default: '--target 75%'
-        type: string
-
 jobs:
   robot-tests:
     runs-on: ubuntu-latest
     env:
       SMART_TESTS_TOKEN: ${{ secrets.PTSv2_TOKEN }}
-      # Set --observation flag when mode is observation, empty string otherwise
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # required — Smart Tests analyzes full git history
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13.1'
-
-    - name: Set up Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: '17'
-
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt -r requirements-robot.txt
-        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+    # ... set up Python, Java, install dependencies, start app ...
 
     - name: Verify Smart Tests connectivity
       run: smart-tests verify || true
@@ -504,18 +471,11 @@ jobs:
           --source ${{ github.workspace }}
 
     - name: Record session
-      # OBSERVATION_FLAG is --observation in observation mode, empty in production mode
       run: |
         smart-tests record session \
           --build ${{ github.run_id }} \
           $OBSERVATION_FLAG \
           --test-suite robot-api > session.txt
-        cat session.txt
-
-    - name: Initialize application database
-      run: |
-        python -m app.db.init_db
-        python -m app.db.seed_data
 
     - name: Enumerate tests (dry run)
       run: |
@@ -533,216 +493,55 @@ jobs:
         EXIT_CODE=$?
         cat /tmp/subset-status.txt || true
         set -e
+        [ $EXIT_CODE -ne 0 ] && echo "ALL" > smart-tests-subset.txt || true
 
-        # Fall back to all tests if subset generation failed
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo "Subset generation failed — falling back to all tests"
-          echo "ALL" > smart-tests-subset.txt
-        fi
-
-        echo "Subset result:"
-        cat smart-tests-subset.txt
-
-    - name: Start application and run Robot tests
-      continue-on-error: true
+    - name: Run Robot tests (subset or all)
       run: |
-        # Start application in background
-        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        APP_PID=$!
-        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done'
-
-        mkdir -p test-results
-        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
-
-        # Run subset if available, otherwise run all tests
-        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
-          echo "Running Smart Tests subset"
-          eval robot \
-            --outputdir test-results --output output.xml \
-            --log log.html --report report.html --xunit junit.xml \
-            $SUBSET_CONTENT tests/robot/ || true
+        SUBSET=$(cat smart-tests-subset.txt)
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET" != "ALL" ]; then
+          eval robot --outputdir test-results --output output.xml $SUBSET tests/robot/
         else
-          echo "Running all tests"
-          robot \
-            --outputdir test-results --output output.xml \
-            --log log.html --report report.html --xunit junit.xml \
-            tests/robot/ || true
+          robot --outputdir test-results --output output.xml tests/robot/
         fi
-
-        kill $APP_PID 2>/dev/null || true
-      env:
-        DATABASE_URL: sqlite:///./issue_tracker.db
 
     - name: Record test results
-      if: always()  # must run even if tests fail — Smart Tests needs all results
+      if: always()
       run: |
         smart-tests record tests robot \
           --session @session.txt \
           test-results/output.xml
-
-    - name: Upload test artifacts
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: robot-results
-        path: test-results/
-        retention-days: 30
 ```
 
 ---
 
 ## Example Workflow: GitHub OIDC Auth
 
-No `SMART_TESTS_TOKEN` secret required. The job permissions block and three environment variables replace the secret. All seven CLI steps are identical to the token-based example above.
+No `SMART_TESTS_TOKEN` secret required. Replace the `env:` block with the three lines below and add the `permissions` block. All Smart Tests CLI steps are identical to the token-based example.
 
-For this to work:
-1. Install the `cloudbees-oss/smart-tests-results-upload-action` GitHub App on your repository
-2. Request OIDC activation from the CloudBees Smart Tests team for your org/workspace UUIDs — the workflow returns `401 Unauthorized` until this is done
+> **Prerequisites:** Request OIDC activation from the CloudBees Smart Tests team for your org/workspace UUIDs before using this. The workflow returns `401 Unauthorized` until activation is complete.
 
 ```yaml
-name: Robot Framework Tests (GitHub App - OIDC)
-
-on:
-  workflow_dispatch:
-    inputs:
-      mode:
-        description: 'Smart Tests mode'
-        required: true
-        type: choice
-        default: 'observation'
-        options:
-          - observation
-          - production
-      target:
-        description: 'Optimization target (e.g. --target 75%)'
-        required: false
-        default: '--target 75%'
-        type: string
-
 jobs:
   robot-tests:
     runs-on: ubuntu-latest
 
-    # Required: allows GitHub to issue an OIDC token for this job.
-    # Without this block the CLI cannot authenticate — do not remove it.
+    # Allows GitHub to issue a short-lived OIDC token for this job — do not remove
     permissions:
       id-token: write
       contents: read
 
     env:
-      # Tells the CLI to use GitHub's OIDC JWT instead of SMART_TESTS_TOKEN.
-      # No API key secret is required when this flag is set.
+      # Tells the CLI to use GitHub's OIDC token instead of SMART_TESTS_TOKEN
       EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
-      # Must be UUID values — display names cause 401 Unauthorized.
-      # Find UUIDs in CloudBees Unify > Admin Settings > Organization Profile.
+      # Must be UUID values — display names return 401 Unauthorized
+      # Find UUIDs in CloudBees Unify > Admin Settings > Organization Profile
       SMART_TESTS_ORGANIZATION: <YOUR_ORG_UUID>
       SMART_TESTS_WORKSPACE: <YOUR_WORKSPACE_UUID>
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.13.1'
-
-    - name: Set up Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: temurin
-        java-version: '17'
-
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt -r requirements-robot.txt
-        pip3 install --no-cache-dir smart-tests-cli==2.11.2
-
-    - name: Verify Smart Tests connectivity
-      run: smart-tests verify || true
-
-    - name: Record commit history
-      run: |
-        smart-tests record commit \
-          --name ${{ github.repository }} \
-          --source ${{ github.workspace }} \
-          --max-days 90
-
-    - name: Record build
-      run: |
-        smart-tests record build \
-          --build ${{ github.run_id }} \
-          --source ${{ github.workspace }}
-
-    - name: Record session
-      run: |
-        smart-tests record session \
-          --build ${{ github.run_id }} \
-          $OBSERVATION_FLAG \
-          --test-suite robot-api > session.txt
-        cat session.txt
-
-    - name: Initialize application database
-      run: |
-        python -m app.db.init_db
-        python -m app.db.seed_data
-
-    - name: Enumerate tests (dry run)
-      run: |
-        mkdir -p /tmp/robot-dryrun
-        robot --dryrun --outputdir /tmp/robot-dryrun tests/robot/ 2>/dev/null || true
-
-    - name: Generate Smart Tests subset
-      run: |
-        set +e
-        smart-tests subset robot \
-          --session @session.txt \
-          $TARGET_FLAG \
-          /tmp/robot-dryrun/output.xml \
-          > smart-tests-subset.txt 2>/tmp/subset-status.txt
-        EXIT_CODE=$?
-        cat /tmp/subset-status.txt || true
-        set -e
-
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo "Subset generation failed — falling back to all tests"
-          echo "ALL" > smart-tests-subset.txt
-        fi
-
-        echo "Subset result:"
-        cat smart-tests-subset.txt
-
-    - name: Start application and run Robot tests
-      continue-on-error: true
-      run: |
-        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-        APP_PID=$!
-        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done'
-
-        mkdir -p test-results
-        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
-
-        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
-          echo "Running Smart Tests subset"
-          eval robot \
-            --outputdir test-results --output output.xml \
-            --log log.html --report report.html --xunit junit.xml \
-            $SUBSET_CONTENT tests/robot/ || true
-        else
-          echo "Running all tests"
-          robot \
-            --outputdir test-results --output output.xml \
-            --log log.html --report report.html --xunit junit.xml \
-            tests/robot/ || true
-        fi
-
-        kill $APP_PID 2>/dev/null || true
-      env:
-        DATABASE_URL: sqlite:///./issue_tracker.db
+    # ... same steps as token-based example above ...
 
     - name: Record test results
       if: always()
@@ -750,23 +549,28 @@ jobs:
         smart-tests record tests robot \
           --session @session.txt \
           test-results/output.xml
-
-    # This action uploads test result files as GitHub Actions artifacts so the
-    # Smart Tests GitHub App can read them independently. It is NOT a replacement
-    # for 'smart-tests record tests' above — both steps are required.
-    # The action auto-discovers result files by common patterns (*.xml, etc.) —
-    # no parameters needed.
-    - name: Store results for Smart Tests GitHub App
-      if: always()
-      uses: cloudbees-oss/smart-tests-results-upload-action@v1
-
-    - name: Upload test artifacts
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: robot-results-oidc
-        path: test-results/
-        retention-days: 30
 ```
 
-> **OIDC scope note:** `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH` is specific to the Smart Tests CLI authenticating to the Smart Tests backend on GitHub Actions. This is unrelated to OIDC used in CloudBees CI or AWS-based workflows, where OIDC is the authentication method for the CI runner itself. The two use the same underlying protocol but serve completely different purposes — do not confuse them.
+> **Note on `smart-tests verify`:** With OIDC, `verify` prints "Authentication failed. Please set SMART_TESTS_TOKEN" because it only checks for the token env var. This message is harmless — the `|| true` prevents it from failing the job, and the actual CLI calls (record build, record session, etc.) authenticate correctly via OIDC.
+
+> **OIDC scope note:** `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH` is specific to the Smart Tests CLI authenticating to the Smart Tests backend. This is unrelated to OIDC used in CloudBees CI or AWS-based workflows.
+
+---
+
+## GitHub App Integration (Optional)
+
+The `cloudbees-oss/smart-tests-results-upload-action` is a GitHub App that reads test results independently of the CLI. It is **optional and separate from both auth methods above** — you can use it with token auth or OIDC auth.
+
+**What it does:** Uploads test result files (XML, etc.) as GitHub Actions artifacts so the Smart Tests GitHub App can process them through its own channel. It auto-discovers result files by common patterns — no parameters needed.
+
+**It is NOT a replacement for `smart-tests record tests`.** Both steps serve different purposes and both are required if you are using the GitHub App integration.
+
+**Installation:** Install the `cloudbees-oss/smart-tests-results-upload-action` GitHub App on your repository via GitHub Apps settings. No configuration is needed in the workflow beyond adding the step.
+
+```yaml
+- name: Store results for Smart Tests GitHub App
+  if: always()
+  uses: cloudbees-oss/smart-tests-results-upload-action@v1
+```
+
+Add this step after `smart-tests record tests robot` in either the token-based or OIDC workflow.
