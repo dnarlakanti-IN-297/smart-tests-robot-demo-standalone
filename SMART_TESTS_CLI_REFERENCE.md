@@ -601,9 +601,7 @@ jobs:
 
 No `SMART_TESTS_TOKEN` secret required. The job permissions block and three environment variables replace the secret. All seven CLI steps are identical to the token-based example above.
 
-For this to work:
-1. Install the `cloudbees-oss/smart-tests-results-upload-action` GitHub App on your repository
-2. Request OIDC activation from the CloudBees Smart Tests team for your org/workspace UUIDs — the workflow returns `401 Unauthorized` until this is done
+**Prerequisite:** Request OIDC activation from the CloudBees Smart Tests team for your org/workspace UUIDs — the workflow returns `401 Unauthorized` until this is done.
 
 ```yaml
 name: Robot Framework Tests (GitHub App - OIDC)
