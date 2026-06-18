@@ -1117,6 +1117,7 @@ Projected Savings:
 - Quick branch (40 tests, 0ms latency, both PTSv1 and PTSv2): `patch-robot-demo-quick` — workflows: `tests-robot-smarttests-pts-v1-quick.yml` / `tests-robot-smarttests-pts-v2-quick.yml`
 - Baseline workflow (no Smart Tests): `tests-robot-no-smarttests.yml`
 - GitHub OIDC auth workflow: `tests-robot-github-app-integration-oidc.yml`
+- CLI command reference and workflow examples: [SMART_TESTS_CLI_REFERENCE.md](./SMART_TESTS_CLI_REFERENCE.md)
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
 - GitHub OIDC migration guide: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/set-up-smart-tests/migration-to-github-oidc-auth
 
