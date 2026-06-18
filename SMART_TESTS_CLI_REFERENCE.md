@@ -781,19 +781,25 @@ jobs:
 
 ## GitHub App for Test Sessions
 
-The Smart Tests GitHub App is a separate optional feature that delivers test results directly into GitHub pull requests as comments. It is independent of authentication method — it works whether you use token-based auth or OIDC.
+There are two separate pieces here that work together:
+
+**1. `cloudbees-oss/smart-tests-results-upload-action`** is a GitHub Actions action — a thin wrapper around `actions/upload-artifact`. It scans the CI workspace for test result files (XML, JSON, TRX, etc.) and uploads them as a GitHub Actions artifact. No installation required. No PR comment logic inside it. Just file upload.
+
+**2. The Launchable GitHub App** is a separate GitHub App that independently watches for those artifacts and posts the test results as a comment on the pull request. This is what actually delivers the PR comments. The upload action just makes the files available for the app to find.
+
+The two are fully decoupled — the upload action works whether or not the GitHub App is installed. If the app is not installed, artifacts are still uploaded but no PR comment is posted.
 
 Official documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/features/test-notifications/github-app-for-test-sessions
 
-### What it does
+### What the PR comment feature does
 
 - Posts test results as a comment on the pull request as soon as results are available — before the full CI pipeline finishes
 - Developers can see which tests failed directly in the PR without opening the Actions logs
 - Provides links back to the CloudBees Smart Tests web app for session details and associated test files
 
-### How it works in GitHub Actions
+### Adding the upload action to your workflow
 
-The `cloudbees-oss/smart-tests-results-upload-action` action scans the CI workspace for test result files (XML, JSON, etc.) and uploads them as a GitHub Actions artifact. The Smart Tests GitHub App reads those artifacts and posts the PR comment.
+No installation or parameters required. Add this step after `smart-tests record tests robot`. Works with token auth and OIDC auth equally.
 
 Source: https://github.com/cloudbees-oss/smart-tests-results-upload-action
 
@@ -803,7 +809,7 @@ Source: https://github.com/cloudbees-oss/smart-tests-results-upload-action
   uses: cloudbees-oss/smart-tests-results-upload-action@v1
 ```
 
-The action runs even if tests fail (`if: always()`). No parameters are required — it auto-discovers result files by default glob patterns (`**/*.xml`, `**/*.json`). You can override the patterns if needed:
+Default file patterns discovered automatically: `**/*.xml`, `**/*.json`, `**/*.trx`, `**/*.tap`, `**/test-results/**`, `**/test-reports/**`. Override if needed:
 
 ```yaml
 - name: Store results for Smart Tests GitHub App
@@ -818,21 +824,19 @@ The action runs even if tests fail (`if: always()`). No parameters are required 
 
 ### Important: this is NOT a replacement for `smart-tests record tests`
 
-Both steps are required and serve different purposes:
+Both steps serve different purposes and both are required if you want full functionality:
 
 | Step | Purpose |
 |---|---|
 | `smart-tests record tests robot` | Sends results to the Smart Tests backend for prediction model training and session history |
-| `cloudbees-oss/smart-tests-results-upload-action@v1` | Uploads artifacts for the GitHub App to post as a PR comment |
+| `cloudbees-oss/smart-tests-results-upload-action@v1` | Uploads artifacts so the Launchable GitHub App can post a PR comment |
 
-Removing either step breaks one of the two channels. Keep both.
+### Installing the Launchable GitHub App
 
-### Prerequisites
+To enable the PR comment feature, a repository admin must install the Launchable GitHub App once through GitHub Apps settings. This cannot be done from a workflow file.
 
-**The GitHub App must be manually installed on the repository.** This cannot be done from a workflow file — a repository admin must install it once through GitHub Apps settings:
-
-1. Go to https://github.com/apps/smart-tests and click **Install**
+1. Go to https://github.com/apps/launchable and click **Install**
 2. Select the repository (or all repositories in the org)
 3. Authorize the app
 
-Once installed, adding the `smart-tests-results-upload-action` step to any workflow activates the PR comment feature automatically.
+Once installed, the app automatically reads artifacts uploaded by `smart-tests-results-upload-action` and posts PR comments.
