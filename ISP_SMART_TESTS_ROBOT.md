@@ -1116,7 +1116,7 @@ Projected Savings:
 - PTSv1 demo branch: `patch-robot-demo-ptsv1` — workflow: `tests-robot-smarttests-pts-v1.yml`
 - Quick branch (40 tests, 0ms latency, both PTSv1 and PTSv2): `patch-robot-demo-quick` — workflows: `tests-robot-smarttests-pts-v1-quick.yml` / `tests-robot-smarttests-pts-v2-quick.yml`
 - Baseline workflow (no Smart Tests): `tests-robot-no-smarttests.yml`
-- GitHub OIDC auth workflow: `tests-robot-github-app-integration-oidc.yml`
+- GitHub OIDC auth workflows: `tests-robot-github-app-integration-oidc-v2.yml`, `tests-robot-github-app-integration-oidc-v1.yml`, `tests-robot-github-app-integration-oidc-v2-quick.yml`, `tests-robot-github-app-integration-oidc-v1-quick.yml`
 - CLI command reference and workflow examples: [SMART_TESTS_CLI_REFERENCE.md](./SMART_TESTS_CLI_REFERENCE.md)
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
 - GitHub OIDC migration guide: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/set-up-smart-tests/migration-to-github-oidc-auth
@@ -1131,12 +1131,12 @@ The demo repository includes per-version OIDC workflows that authenticate using 
 
 ### OIDC Workflows in This Repository
 
-| Workflow | Branch | Tests | Latency |
-|---|---|---|---|
-| `tests-robot-github-app-integration-oidc-v2.yml` | `patch-robot-demo-ptsv2` | 451 | 500ms |
-| `tests-robot-github-app-integration-oidc-v1.yml` | `patch-robot-demo-ptsv1` | 451 | 500ms |
-| `tests-robot-github-app-integration-oidc-v2-quick.yml` | `patch-robot-demo-quick` | 40 | 0ms |
-| `tests-robot-github-app-integration-oidc-v1-quick.yml` | `patch-robot-demo-quick` | 40 | 0ms |
+| Actions UI Name | Workflow File | Branch | Tests | Latency |
+|---|---|---|---|---|
+| Robot Framework Tests (GitHub App - OIDC - PTSv2) | `tests-robot-github-app-integration-oidc-v2.yml` | `patch-robot-demo-ptsv2` | 451 | 500ms |
+| Robot Framework Tests (GitHub App - OIDC - PTSv1) | `tests-robot-github-app-integration-oidc-v1.yml` | `patch-robot-demo-ptsv1` | 451 | 500ms |
+| Robot Framework Tests (Quick - GitHub App - OIDC - PTSv2) | `tests-robot-github-app-integration-oidc-v2-quick.yml` | `patch-robot-demo-quick` | 40 | 0ms |
+| Robot Framework Tests (Quick - GitHub App - OIDC - PTSv1) | `tests-robot-github-app-integration-oidc-v1-quick.yml` | `patch-robot-demo-quick` | 40 | 0ms |
 
 Always select the matching branch when triggering manually from the GitHub Actions UI.
 
