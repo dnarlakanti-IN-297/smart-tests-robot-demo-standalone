@@ -1,0 +1,208 @@
+name: Robot Framework Tests (Quick - GitHub App - OIDC - PTSv1)
+
+# Smart Tests GitHub App Integration with GitHub OIDC Authentication (PTSv1 quick branch):
+# ✅ Uses smart-tests-cli==2.11.2 — same CLI as PTSv2, token determines engine
+# ✅ GitHub OIDC token auth — no SMART_TESTS_TOKEN secret required
+# ✅ GitHub App (cloudbees-oss/smart-tests-results-upload-action@v1) for results upload
+# ✅ 40 tests, 0ms latency — fast warm-up runs for PTSv1 OIDC
+# ✅ Same seven-step pattern as full OIDC PTSv1 workflow
+# ⚠️  Run 5-6 times to warm up the PTSv1 ML model before switching to full branch
+# 📚 OIDC migration: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/set-up-smart-tests/migration-to-github-oidc-auth
+# 📚 GitHub App: https://github.com/cloudbees-oss/smart-tests-results-upload-action
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Smart Tests mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      target:
+        description: 'Optimization target (e.g., --target 75%)'
+        required: false
+        default: '--target 75%'
+        type: string
+  push:
+    branches: [ patch-robot-demo-quick ]
+    paths:
+      - 'tests/robot/**'
+      - '.github/workflows/tests-robot-github-app-integration-oidc-v1-quick.yml'
+
+jobs:
+  robot-ptsv1-quick:
+    name: Robot Framework API Tests (GitHub App - OIDC - PTSv1 Quick - 40 tests)
+    runs-on: ubuntu-latest
+
+    # Required for GitHub OIDC token issuance — do not remove
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      # GitHub OIDC auth — replaces SMART_TESTS_TOKEN secret
+      EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
+      # Must be UUID values — find in CloudBees Unify > Admin Settings > Organization Profile
+      # Set SMART_TESTS_ORGANIZATION_v1 and SMART_TESTS_WORKSPACE_v1 as repository variables
+      SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v1 }}
+      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_v1 }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
+      SIMULATED_LATENCY_MS: 0
+      TEST_SUITE: tests/robot/data_driven/auth_edge_cases.robot
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-robot.txt
+        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Record commits with Smart Tests
+      run: |
+        smart-tests record commit --name ${{ github.repository }} --source ${{ github.workspace }} --max-days 90
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }} --source ${{ github.workspace }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite robot-quick-oidc-v1 > session.txt
+        cat session.txt
+        echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
+        echo "Target: $TARGET_FLAG"
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Create Smart Tests subset
+      shell: bash
+      run: |
+        set +e
+        echo "Running Robot dry-run to collect test names..."
+        mkdir -p /tmp/robot-dryrun
+        robot --dryrun --outputdir /tmp/robot-dryrun $TEST_SUITE 2>/dev/null || true
+
+        echo "Requesting subset from Smart Tests..."
+        smart-tests subset robot --session @session.txt $TARGET_FLAG /tmp/robot-dryrun/output.xml > smart-tests-subset.txt 2>/tmp/subset-status.txt
+        EXIT_CODE=$?
+        cat /tmp/subset-status.txt || true
+        set -e
+
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "Smart Tests subset failed, falling back to ALL tests"
+          echo "ALL" > smart-tests-subset.txt
+        fi
+
+        echo "Subset result:"
+        cat smart-tests-subset.txt
+        echo "Tests in subset: $(wc -l < smart-tests-subset.txt)"
+
+    - name: Start application and run Robot tests
+      continue-on-error: true
+      run: |
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        mkdir -p test-results
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
+
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          echo "Running Robot Framework subset"
+          eval robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $SUBSET_CONTENT \
+            $TEST_SUITE || true
+        else
+          echo "Running all Robot Framework tests"
+          robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $TEST_SUITE || true
+        fi
+
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Record test results with Smart Tests (CLI)
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "Recording test results to Smart Tests..."
+          smart-tests record tests robot --session @session.txt test-results/output.xml
+          echo "Test results recorded successfully."
+        else
+          echo "No output.xml found"
+          ls -la test-results/ || echo "test-results directory not found"
+          exit 1
+        fi
+
+    # Uploads test result files as GitHub Actions artifacts for the GitHub App to read.
+    # This is separate from 'smart-tests record tests' above — both steps are required.
+    - name: Store Test Results for Smart Tests (GitHub App)
+      if: always()
+      uses: cloudbees-oss/smart-tests-results-upload-action@v1
+
+    - name: Upload Robot Framework results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-results-github-app-oidc-v1-quick
+        path: test-results/
+        retention-days: 30
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Test Summary ==="
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print(str(s.get("pass")) + " passed, " + str(s.get("fail")) + " failed") if s is not None else None' || echo "Could not parse test results"
+        else
+          echo "No test results found"
+        fi
