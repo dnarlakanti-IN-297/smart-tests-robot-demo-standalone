@@ -580,6 +580,12 @@ jobs:
           --session @session.txt \
           test-results/output.xml
 
+    # Optional: upload artifacts for the Smart Tests GitHub App (see GitHub App section below).
+    # Works with token auth and OIDC auth equally. Requires the GitHub App to be installed first.
+    - name: Store results for Smart Tests GitHub App
+      if: always()
+      uses: cloudbees-oss/smart-tests-results-upload-action@v1
+
     - name: Upload test artifacts
       if: always()
       uses: actions/upload-artifact@v4
@@ -770,3 +776,63 @@ jobs:
 ```
 
 > **OIDC scope note:** `EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH` is specific to the Smart Tests CLI authenticating to the Smart Tests backend on GitHub Actions. This is unrelated to OIDC used in CloudBees CI or AWS-based workflows, where OIDC is the authentication method for the CI runner itself. The two use the same underlying protocol but serve completely different purposes — do not confuse them.
+
+---
+
+## GitHub App for Test Sessions
+
+The Smart Tests GitHub App is a separate optional feature that delivers test results directly into GitHub pull requests as comments. It is independent of authentication method — it works whether you use token-based auth or OIDC.
+
+Official documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/features/test-notifications/github-app-for-test-sessions
+
+### What it does
+
+- Posts test results as a comment on the pull request as soon as results are available — before the full CI pipeline finishes
+- Developers can see which tests failed directly in the PR without opening the Actions logs
+- Provides links back to the CloudBees Smart Tests web app for session details and associated test files
+
+### How it works in GitHub Actions
+
+The `cloudbees-oss/smart-tests-results-upload-action` action scans the CI workspace for test result files (XML, JSON, etc.) and uploads them as a GitHub Actions artifact. The Smart Tests GitHub App reads those artifacts and posts the PR comment.
+
+Source: https://github.com/cloudbees-oss/smart-tests-results-upload-action
+
+```yaml
+- name: Store results for Smart Tests GitHub App
+  if: always()
+  uses: cloudbees-oss/smart-tests-results-upload-action@v1
+```
+
+The action runs even if tests fail (`if: always()`). No parameters are required — it auto-discovers result files by default glob patterns (`**/*.xml`, `**/*.json`). You can override the patterns if needed:
+
+```yaml
+- name: Store results for Smart Tests GitHub App
+  if: always()
+  uses: cloudbees-oss/smart-tests-results-upload-action@v1
+  with:
+    files: |
+      **/*.xml
+      **/*.json
+    days: 7    # artifact retention in days (default: 21)
+```
+
+### Important: this is NOT a replacement for `smart-tests record tests`
+
+Both steps are required and serve different purposes:
+
+| Step | Purpose |
+|---|---|
+| `smart-tests record tests robot` | Sends results to the Smart Tests backend for prediction model training and session history |
+| `cloudbees-oss/smart-tests-results-upload-action@v1` | Uploads artifacts for the GitHub App to post as a PR comment |
+
+Removing either step breaks one of the two channels. Keep both.
+
+### Prerequisites
+
+**The GitHub App must be manually installed on the repository.** This cannot be done from a workflow file — a repository admin must install it once through GitHub Apps settings:
+
+1. Go to https://github.com/apps/smart-tests and click **Install**
+2. Select the repository (or all repositories in the org)
+3. Authorize the app
+
+Once installed, adding the `smart-tests-results-upload-action` step to any workflow activates the PR comment feature automatically.
