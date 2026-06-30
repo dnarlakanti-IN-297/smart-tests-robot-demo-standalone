@@ -1,0 +1,258 @@
+name: Tests
+
+on:
+  push:
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'requirements-dev.txt'
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'requirements-dev.txt'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Smart Tests mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      target:
+        description: 'Optimization target (e.g., --target 50%)'
+        required: false
+        default: '--target 50%'
+        type: string
+
+jobs:
+  unit-and-integration-tests:
+    name: Unit & Integration Tests
+    runs-on: ubuntu-latest
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      # Use observation mode unless manually triggered with production mode
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
+      # Use custom target if provided via workflow_dispatch, otherwise default to --target 50%
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 50%' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip3 install --no-cache-dir smart-tests-cli~=2.0
+
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }}
+
+    - name: Create test database
+      run: |
+        python -m app.db.init_db
+
+    - name: Record session for unit tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite pytest-unit > session-unit.txt
+        cat session-unit.txt
+
+    - name: Generate unit test list
+      run: |
+        pytest --collect-only -qq tests/unit/ > test_list_unit.txt
+        cat test_list_unit.txt
+
+    - name: Create Smart Tests subset for unit tests
+      run: |
+        cat test_list_unit.txt | smart-tests subset pytest --session @session-unit.txt $TARGET_FLAG > smart-tests-subset-unit.txt
+        cat smart-tests-subset-unit.txt
+
+    - name: Run unit tests (Smart Tests subset)
+      continue-on-error: true
+      run: |
+        if [ -s smart-tests-subset-unit.txt ]; then
+          pytest -v -o junit_family=legacy --cov=app --cov-report=xml --cov-report=term --junit-xml=test-results/unit.xml @smart-tests-subset-unit.txt
+        else
+          echo "No unit tests to run in subset"
+        fi
+
+    - name: Record unit test results with Smart Tests
+      if: always()
+      run: |
+        smart-tests record tests pytest --session @session-unit.txt "test-results/unit.xml"
+
+    - name: Record session for integration tests
+      if: always()
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite pytest-integration > session-integration.txt
+        cat session-integration.txt
+
+    - name: Generate integration test list
+      if: always()
+      run: |
+        pytest --collect-only -qq tests/integration/ > test_list_integration.txt
+        cat test_list_integration.txt
+
+    - name: Create Smart Tests subset for integration tests
+      if: always()
+      run: |
+        cat test_list_integration.txt | smart-tests subset pytest --session @session-integration.txt $TARGET_FLAG > smart-tests-subset-integration.txt
+        cat smart-tests-subset-integration.txt
+
+    - name: Run integration tests (Smart Tests subset)
+      if: always()
+      continue-on-error: true
+      run: |
+        if [ -s smart-tests-subset-integration.txt ]; then
+          pytest -v -o junit_family=legacy --cov=app --cov-append --cov-report=xml --cov-report=term --junit-xml=test-results/integration.xml @smart-tests-subset-integration.txt
+        else
+          echo "No integration tests to run in subset"
+        fi
+
+    - name: Record integration test results with Smart Tests
+      if: always()
+      run: |
+        smart-tests record tests pytest --session @session-integration.txt "test-results/integration.xml"
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        flags: unittests,integration
+        name: codecov-umbrella
+      continue-on-error: true
+
+  e2e-tests:
+    name: E2E Tests with Playwright
+    runs-on: ubuntu-latest
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      # Use observation mode unless manually triggered with production mode
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'production' && ' ' || '--observation' }}
+      # Use custom target if provided via workflow_dispatch, otherwise default to --target 50%
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 50%' }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        pip3 install --no-cache-dir smart-tests-cli~=2.0
+
+    - name: Install Playwright browsers
+      run: |
+        playwright install --with-deps chromium
+
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite pytest-e2e > session.txt
+        cat session.txt
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Generate test list
+      run: |
+        pytest --collect-only -qq tests/e2e/ > test_list.txt
+        cat test_list.txt
+
+    - name: Create Smart Tests subset
+      run: |
+        cat test_list.txt | smart-tests subset pytest --session @session.txt $TARGET_FLAG > smart-tests-subset.txt
+        cat smart-tests-subset.txt
+
+    - name: Start application and run E2E tests
+      run: |
+        # Start application in background (with DEBUG=False to disable reload)
+        DEBUG=False python run.py &
+        APP_PID=$!
+        echo "Started application with PID $APP_PID"
+
+        # Wait for application to be ready
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          exit 1
+        }
+        echo "Application is ready!"
+
+        # Run tests
+        if [ -s smart-tests-subset.txt ]; then
+          pytest -v -o junit_family=legacy --video=retain-on-failure --screenshot=only-on-failure --junit-xml=test-results/junit.xml @smart-tests-subset.txt
+        else
+          echo "No tests to run in subset"
+        fi
+
+        # Cleanup
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Record test results with Smart Tests
+      if: always()
+      run: |
+        smart-tests record tests pytest --session @session.txt "test-results/*.xml"
+
+    - name: Upload Playwright artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: playwright-report
+        path: |
+          test-results/
+          playwright-report/
+        retention-days: 7
+
