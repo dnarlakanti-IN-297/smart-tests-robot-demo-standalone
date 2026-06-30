@@ -1,0 +1,367 @@
+name: Workshop - Optimization Targets Best Practices Demo
+
+# This workflow is designed to be run during the Optimization Targets & Observability Mode
+# workshop. Each run demonstrates one concept from the best practices guide:
+#   - How to choose an optimization target based on SDLC stage
+#   - How observability mode works and when to use it
+#   - How the confidence curve connects to target selection
+#
+# Run this workflow once per day during the week before the workshop to build
+# a meaningful confidence curve in the Smart Tests dashboard.
+# Reference: CONFIDENCE_CURVE_WEEKLY_SCHEDULE.md and OPTIMIZATION_TARGETS_WORKSHOP_NOTES.md
+
+on:
+  workflow_dispatch:
+    inputs:
+      sdlc_stage:
+        description: 'SDLC stage to simulate — determines the recommended target and explains the tradeoff in the job summary'
+        required: true
+        type: choice
+        default: 'onboarding'
+        options:
+          - onboarding
+          - pr_check
+          - feature_branch_ci
+          - nightly
+          - pre_release
+      observation_mode:
+        description: 'Observation mode: on = all tests run, Smart Tests analyzes as-if subset (safe for learning period); off = real subset applied'
+        required: true
+        type: choice
+        default: 'on'
+        options:
+          - 'on'
+          - 'off'
+      optimization_target_type:
+        description: 'Optimization target type: target (% of expected duration, safest default), confidence (Y-axis — probability of catching failures), time (X-axis — fixed budget)'
+        required: true
+        type: choice
+        default: 'target'
+        options:
+          - target
+          - confidence
+          - time
+      optimization_target_value:
+        description: 'Target value — use % for target/confidence (e.g. 50%, 90%), or duration for time (e.g. 10m, 5m)'
+        required: true
+        default: '50%'
+        type: string
+      test_suite:
+        description: 'Test suite to run — full suite builds more curve data; quick is faster for iterating'
+        required: true
+        type: choice
+        default: 'full'
+        options:
+          - full
+          - quick
+
+jobs:
+  workshop-demo:
+    name: "[${{ inputs.sdlc_stage }}] ${{ inputs.optimization_target_type }} ${{ inputs.optimization_target_value }} | obs=${{ inputs.observation_mode }}"
+    runs-on: ubuntu-latest
+    env:
+      SMART_TESTS_TOKEN: ${{ secrets.PTSv2_TOKEN }}
+      OBSERVATION_FLAG: ${{ inputs.observation_mode == 'on' && '--observation' || ' ' }}
+      TARGET_FLAG: ${{ format('--{0} {1}', inputs.optimization_target_type, inputs.optimization_target_value) }}
+      TEST_SUITE_PATH: ${{ inputs.test_suite == 'quick' && 'tests/robot/data_driven/auth_edge_cases.robot' || 'tests/robot/' }}
+      SIMULATED_LATENCY_MS: 500
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-robot.txt
+        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+
+    - name: Verify Smart Tests connectivity
+      run: |
+        smart-tests verify || true
+
+    - name: Print workshop scenario context
+      run: |
+        echo "=================================================="
+        echo "WORKSHOP DEMO RUN"
+        echo "=================================================="
+        echo "SDLC Stage:          ${{ inputs.sdlc_stage }}"
+        echo "Observation Mode:    ${{ inputs.observation_mode }}"
+        echo "Target Type:         ${{ inputs.optimization_target_type }}"
+        echo "Target Value:        ${{ inputs.optimization_target_value }}"
+        echo "Target Flag (built): $TARGET_FLAG"
+        echo "Observation Flag:    $OBSERVATION_FLAG"
+        echo "Test Suite:          $TEST_SUITE_PATH"
+        echo ""
+        case "${{ inputs.sdlc_stage }}" in
+          onboarding)
+            echo "STAGE CONTEXT: Onboarding / early adoption"
+            echo "  - Use --target (percentage) so the subset scales with the suite"
+            echo "  - Keep observation mode ON: all tests run, nothing is skipped"
+            echo "  - Goal: feed the model enough data to build the confidence curve"
+            ;;
+          pr_check)
+            echo "STAGE CONTEXT: PR / pre-merge checks"
+            echo "  - Use --confidence or --time: pipeline has a hard time box"
+            echo "  - Observation mode OFF once the model is trained (or ON to validate first)"
+            echo "  - Goal: fast feedback, high probability of catching regressions"
+            ;;
+          feature_branch_ci)
+            echo "STAGE CONTEXT: Feature branch CI"
+            echo "  - Use --confidence: consistent test list, maximize failure detection"
+            echo "  - Observation mode OFF on stable branches with a well-trained model"
+            echo "  - Goal: catch failures introduced by the feature under development"
+            ;;
+          nightly)
+            echo "STAGE CONTEXT: Nightly / integration run"
+            echo "  - Use --target (percentage): suite varies between nightly runs"
+            echo "  - Observation mode OFF once comfortable with the model predictions"
+            echo "  - Goal: broad coverage over the delta since the last night"
+            ;;
+          pre_release)
+            echo "STAGE CONTEXT: Pre-release / release gate"
+            echo "  - Use composable targets: critical path tests + AI-based confidence"
+            echo "  - Observation mode OFF: this gate must be decisive"
+            echo "  - Goal: maximum confidence with minimum time before release"
+            ;;
+        esac
+        echo "=================================================="
+
+    - name: Record commits with Smart Tests
+      run: |
+        smart-tests record commit --name ${{ github.repository }} --source ${{ github.workspace }} --max-days 90
+
+    - name: Record build with Smart Tests
+      run: |
+        smart-tests record build --build ${{ github.run_id }} --source ${{ github.workspace }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session \
+          --build ${{ github.run_id }} \
+          $OBSERVATION_FLAG \
+          --test-suite robot-workshop-${{ inputs.sdlc_stage }} \
+          > session.txt
+        cat session.txt
+        echo ""
+        echo "Observation mode is: ${{ inputs.observation_mode == 'on' && 'ON - all tests will run; results analyzed as-if subset was applied' || 'OFF - real subset will be applied' }}"
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Create Smart Tests subset
+      shell: bash
+      run: |
+        set +e
+        echo "Running Robot dry-run to collect test names..."
+        mkdir -p /tmp/robot-dryrun
+        robot --dryrun --outputdir /tmp/robot-dryrun $TEST_SUITE_PATH 2>/dev/null || true
+
+        echo ""
+        echo "Requesting subset from Smart Tests using: $TARGET_FLAG"
+        echo "Note: if observation mode is ON, this returns all tests regardless of the target"
+        echo ""
+        smart-tests subset robot \
+          --session @session.txt \
+          $TARGET_FLAG \
+          /tmp/robot-dryrun/output.xml \
+          > smart-tests-subset.txt 2>/tmp/subset-status.txt
+        EXIT_CODE=$?
+        cat /tmp/subset-status.txt || true
+        set -e
+
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "Smart Tests subset failed, falling back to ALL tests"
+          echo "ALL" > smart-tests-subset.txt
+        fi
+
+        SUBSET_LINE_COUNT=$(wc -l < smart-tests-subset.txt)
+        echo ""
+        echo "Subset result ($SUBSET_LINE_COUNT lines):"
+        cat smart-tests-subset.txt
+
+    - name: Start application and run Robot tests
+      id: run_tests
+      continue-on-error: true
+      run: |
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        mkdir -p test-results
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
+
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          echo "Running Robot Framework with Smart Tests subset"
+          eval robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $SUBSET_CONTENT \
+            $TEST_SUITE_PATH || true
+        else
+          echo "Running all Robot Framework tests (observation mode or fallback)"
+          robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $TEST_SUITE_PATH || true
+        fi
+
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Record test results with Smart Tests
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "Recording test results to Smart Tests..."
+          smart-tests record tests robot --session @session.txt test-results/output.xml
+          echo "Test results recorded successfully."
+        else
+          echo "No output.xml found"
+          ls -la test-results/ || echo "test-results directory not found"
+          exit 1
+        fi
+
+    - name: Generate workshop summary
+      if: always()
+      run: |
+        echo "## Workshop Demo Run Complete" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+        echo "| SDLC Stage | \`${{ inputs.sdlc_stage }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| Optimization Target Type | \`${{ inputs.optimization_target_type }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| Target Value | \`${{ inputs.optimization_target_value }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| CLI Flag Built | \`$TARGET_FLAG\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| Observation Mode | \`${{ inputs.observation_mode }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "| Test Suite | \`${{ inputs.test_suite }}\` |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "### Best Practice: Why This Target for This Stage" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        case "${{ inputs.sdlc_stage }}" in
+          onboarding)
+            echo "**Stage: Onboarding / Early Adoption**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use \`--target\` (percentage duration) during onboarding. It is the safest default because:" >> $GITHUB_STEP_SUMMARY
+            echo "- It scales automatically with the suite size — no risk of returning all tests when the suite changes." >> $GITHUB_STEP_SUMMARY
+            echo "- It does not require a trained model to produce meaningful subsets." >> $GITHUB_STEP_SUMMARY
+            echo "- Pair it with observation mode (\`--observation\`) so all tests run while the model learns." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**When to graduate:** Move to \`--confidence\` once the confidence curve has stabilized (typically 2 to 4 weeks of consistent runs)." >> $GITHUB_STEP_SUMMARY
+            ;;
+          pr_check)
+            echo "**Stage: PR / Pre-merge Checks**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use \`--confidence\` or \`--time\` for PR checks:" >> $GITHUB_STEP_SUMMARY
+            echo "- \`--confidence 90%\` ensures a high probability of catching regressions before merge." >> $GITHUB_STEP_SUMMARY
+            echo "- \`--time 10m\` enforces a hard runtime budget when the pipeline has a strict SLA." >> $GITHUB_STEP_SUMMARY
+            echo "- Both work best with a stable, consistent test list." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Risk to avoid:** If the full test list is shorter than the target threshold, all tests are returned (subsetting is bypassed). Keep this in mind for small suites." >> $GITHUB_STEP_SUMMARY
+            ;;
+          feature_branch_ci)
+            echo "**Stage: Feature Branch CI**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use \`--confidence\` on feature branches:" >> $GITHUB_STEP_SUMMARY
+            echo "- The test list is consistent on a feature branch (same tests each run)." >> $GITHUB_STEP_SUMMARY
+            echo "- \`--confidence\` maximizes the probability of catching failures introduced by the feature." >> $GITHUB_STEP_SUMMARY
+            echo "- As the model matures, the same confidence level requires fewer tests — savings improve over time." >> $GITHUB_STEP_SUMMARY
+            ;;
+          nightly)
+            echo "**Stage: Nightly / Integration Run**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use \`--target\` (percentage duration) for nightly runs:" >> $GITHUB_STEP_SUMMARY
+            echo "- Nightly runs accumulate a larger delta than PR runs. The test list often varies." >> $GITHUB_STEP_SUMMARY
+            echo "- \`--target\` scales with the suite and handles changing test lists gracefully." >> $GITHUB_STEP_SUMMARY
+            echo "- A 25% target on a 2-hour suite returns 30 minutes of the most relevant tests." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Alternative:** Run four nightly jobs at 25% each with \`sortByNotRecentlySelected()\` to rotate coverage across the full suite over four nights." >> $GITHUB_STEP_SUMMARY
+            ;;
+          pre_release)
+            echo "**Stage: Pre-release / Release Gate**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Use composable targets for release gates:" >> $GITHUB_STEP_SUMMARY
+            echo "- Combine a static critical-path test mapping with AI-based confidence selection." >> $GITHUB_STEP_SUMMARY
+            echo "- Example: \`--goal-spec \"prioritizeByTestMapping(),select(confidence=95%)\"\`" >> $GITHUB_STEP_SUMMARY
+            echo "- This ensures critical tests always run, while AI fills the remaining budget with the most relevant tests." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Note:** Composable targets require the \`--goal-spec\` flag instead of a single target flag. This is an advanced configuration." >> $GITHUB_STEP_SUMMARY
+            ;;
+        esac
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Optimization Target Reference" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| Target | Flag | Axis | Best For | Risk |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|------|------|----------|------|" >> $GITHUB_STEP_SUMMARY
+        echo "| Percentage duration | \`--target X%\` | Scales dynamically | Variable/growing suites, onboarding | None (safest) |" >> $GITHUB_STEP_SUMMARY
+        echo "| Confidence | \`--confidence X%\` | Y-axis of curve | Stable suites with trained model | Returns all tests if suite is short |" >> $GITHUB_STEP_SUMMARY
+        echo "| Fixed time | \`--time Xm\` | X-axis of curve | Hard pipeline time box | Returns all tests if suite is short |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "### Observation Mode" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ inputs.observation_mode }}" = "on" ]; then
+          echo "Observation mode was **ON** for this run." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- All tests ran normally — nothing was skipped." >> $GITHUB_STEP_SUMMARY
+          echo "- Smart Tests analyzed results as if the subset \`$TARGET_FLAG\` had been applied." >> $GITHUB_STEP_SUMMARY
+          echo "- Check the Smart Tests dashboard to see: how much time would have been saved, and whether the subset would have caught any failures." >> $GITHUB_STEP_SUMMARY
+          echo "- This run feeds the confidence curve. Open the Simulate page to see the curve update." >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Observation mode was **OFF** for this run." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- The real subset \`$TARGET_FLAG\` was applied — only the selected tests ran." >> $GITHUB_STEP_SUMMARY
+          echo "- Check the Smart Tests dashboard to see actual time saved vs. the full run estimate." >> $GITHUB_STEP_SUMMARY
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "Triggered by @${{ github.actor }} | Run: ${{ github.run_id }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload Robot Framework results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: workshop-demo-results-${{ inputs.sdlc_stage }}-${{ inputs.optimization_target_type }}
+        path: test-results/
+        retention-days: 30
