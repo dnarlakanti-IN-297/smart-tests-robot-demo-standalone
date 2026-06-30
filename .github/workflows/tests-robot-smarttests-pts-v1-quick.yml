@@ -17,10 +17,19 @@ on:
         options:
           - observation
           - production
-      target:
-        description: 'Optimization target (e.g., --target 75%)'
-        required: false
-        default: '--target 75%'
+      optimization_target_type:
+        description: 'Optimization target type: target (% of expected duration, safest default), confidence (Y-axis — probability of catching failures), time (X-axis — fixed runtime budget)'
+        required: true
+        type: choice
+        default: 'target'
+        options:
+          - target
+          - confidence
+          - time
+      optimization_target_value:
+        description: 'Target value — use % for target/confidence (e.g. 75%, 90%), or duration for time (e.g. 10m, 5m)'
+        required: true
+        default: '75%'
         type: string
   push:
     branches: [ patch-robot-demo-quick ]
@@ -35,7 +44,7 @@ jobs:
     env:
       SMART_TESTS_TOKEN: ${{ secrets.PTSv1_TOKEN }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
-      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '--target 75%' }}
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && format('--{0} {1}', inputs.optimization_target_type, inputs.optimization_target_value) || '--target 75%' }}
       SIMULATED_LATENCY_MS: 0
       TEST_SUITE: tests/robot/data_driven/auth_edge_cases.robot
 
