@@ -1,0 +1,87 @@
+name: Robot Framework Tests (No Launchable - Baseline)
+
+# BASELINE workflow - runs ALL tests with NO Launchable optimization.
+# Compare runtime against tests-robot-launchable.yml to see savings.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ patch-robot-demo-v1-launchable ]
+    paths:
+      - 'tests/robot/**'
+
+jobs:
+  robot-all-tests-baseline:
+    name: Robot Framework - ALL Tests (Baseline - No Launchable)
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-robot.txt
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Start application and run ALL Robot tests
+      run: |
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done'
+        echo "Application is ready!"
+
+        mkdir -p test-results
+
+        echo "Running ALL Robot Framework tests (no Launchable optimization)"
+        robot \
+          --outputdir test-results \
+          --output output.xml \
+          --log log.html \
+          --report report.html \
+          --xunit junit.xml \
+          --loglevel INFO \
+          tests/robot/ || true
+
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+        SIMULATED_LATENCY_MS: 500
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Baseline Summary (ALL tests, no Launchable) ==="
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print("Total: " + str(int(s.get("pass")) + int(s.get("fail"))) + " | Passed: " + str(s.get("pass")) + " | Failed: " + str(s.get("fail"))) if s is not None else None' || true
+        fi
+
+    - name: Upload baseline results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-baseline-no-launchable-results
+        path: test-results/
+        retention-days: 30

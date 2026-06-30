@@ -1,0 +1,190 @@
+name: Robot Framework Tests (Launchable)
+
+# Launchable v1 Integration for Robot Framework:
+# ✅ Uses Launchable CLI v1.124.2
+# ✅ subset robot: dry-run first → test_list.xml → launchable subset
+# ✅ record tests robot: passes output.xml after real run
+# ✅ eval used to handle single-quoted subset args correctly
+# 📚 Docs: https://help.launchableinc.com/features/predictive-test-selection/requesting-and-running-a-subset-of-tests/subsetting-with-the-launchable-cli/
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Launchable mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      target:
+        description: 'Optimization target percentage (e.g., 75%)'
+        required: false
+        default: '75%'
+        type: string
+  push:
+    branches: [ patch-robot-demo-v1-launchable ]
+    paths:
+      - 'tests/robot/**'
+      - '.github/workflows/tests-robot-launchable.yml'
+
+jobs:
+  robot-launchable-tests:
+    name: Robot Framework API Tests (Launchable v1)
+    runs-on: ubuntu-latest
+    env:
+      LAUNCHABLE_TOKEN: ${{ secrets.LAUNCHABLE_TOKEN }}
+      BUILD_NAME: ${{ github.event.repository.name }}-${{ github.run_id }}
+      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || '75%' }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || '' }}
+      SIMULATED_LATENCY_MS: 500
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-robot.txt
+        pip install launchable==1.124.2
+
+    - name: Verify Launchable connectivity
+      run: |
+        launchable verify || true
+
+    - name: Record build with Launchable
+      run: |
+        launchable record build --name "$BUILD_NAME" --max-days 30
+
+    - name: Record session with Launchable
+      run: |
+        launchable record session --build "$BUILD_NAME" $OBSERVATION_FLAG > session.txt
+        echo "Session ID: $(cat session.txt)"
+        echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
+        echo "Target: $TARGET"
+
+    - name: Dry-run to discover all tests
+      run: |
+        mkdir -p /tmp/launchable-dryrun
+        robot --dryrun -o /tmp/launchable-dryrun/test_list.xml tests/robot/ 2>/dev/null || true
+        echo "Dry-run test list generated:"
+        ls -lh /tmp/launchable-dryrun/
+
+    - name: Get Launchable subset
+      shell: bash
+      run: |
+        set +e
+        SESSION_ID=$(cat session.txt)
+        echo "Requesting subset from Launchable..."
+
+        launchable subset \
+          --session "$SESSION_ID" \
+          --target "$TARGET" \
+          --rest remaining-tests.txt \
+          robot \
+          /tmp/launchable-dryrun/test_list.xml > launchable-subset.txt 2>/tmp/subset-status.txt
+
+        EXIT_CODE=$?
+        cat /tmp/subset-status.txt || true
+        set -e
+
+        echo "=== Subset output ==="
+        cat launchable-subset.txt || echo "(empty)"
+        echo "=== Remaining tests ==="
+        cat remaining-tests.txt 2>/dev/null || echo "(none)"
+
+    - name: Initialize database
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Start application and run Robot tests
+      continue-on-error: true
+      run: |
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        mkdir -p test-results
+
+        SUBSET_CONTENT=$(cat launchable-subset.txt 2>/dev/null)
+
+        if [ -n "$SUBSET_CONTENT" ]; then
+          echo "Running Launchable subset"
+          # eval required: subset output has single-quoted args like -s 'Suite' -t 'Test Name'
+          eval robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            "$SUBSET_CONTENT" \
+            tests/robot/ || true
+        else
+          echo "Running ALL Robot Framework tests (no subset available)"
+          robot \
+            --outputdir test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            tests/robot/ || true
+        fi
+
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./issue_tracker.db
+
+    - name: Record test results with Launchable
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "Recording test results to Launchable..."
+          launchable record tests --session "$(cat session.txt)" robot test-results/output.xml
+          echo "✅ Test results recorded!"
+        else
+          echo "❌ No output.xml found"
+          ls -la test-results/ || echo "test-results directory not found"
+        fi
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Test Summary ==="
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print("Total: " + str(int(s.get("pass")) + int(s.get("fail"))) + " | Passed: " + str(s.get("pass")) + " | Failed: " + str(s.get("fail"))) if s is not None else None' || true
+        fi
+
+    - name: Upload results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-launchable-results
+        path: test-results/
+        retention-days: 30
