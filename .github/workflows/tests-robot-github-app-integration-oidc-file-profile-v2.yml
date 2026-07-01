@@ -184,6 +184,53 @@ jobs:
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
 
+    - name: Rewrite junit.xml classnames to file paths (required for file profile)
+      if: always()
+      run: |
+        if [ ! -f test-results/junit.xml ] || [ ! -f test-results/output.xml ]; then
+          echo "Skipping: required files not found"
+          exit 0
+        fi
+        python3 - <<'PYEOF'
+        import xml.etree.ElementTree as ET
+        import os
+
+        # output.xml has source= attributes with the actual .robot file paths
+        output_root = ET.parse('test-results/output.xml').getroot()
+        suite_to_file = {}
+
+        def walk_suites(node, path_prefix):
+            name = node.get('name', '')
+            source = node.get('source', '')
+            current_path = f"{path_prefix}.{name}" if path_prefix else name
+            if source.endswith('.robot'):
+                suite_to_file[current_path] = os.path.relpath(source)
+            for child in node:
+                if child.tag == 'suite':
+                    walk_suites(child, current_path)
+
+        top = output_root.find('suite')
+        if top is not None:
+            walk_suites(top, '')
+
+        print(f"Mapped {len(suite_to_file)} suite paths to .robot files")
+        for k, v in list(suite_to_file.items())[:3]:
+            print(f"  {k!r} -> {v!r}")
+
+        junit_root = ET.parse('test-results/junit.xml').getroot()
+        junit_tree = ET.parse('test-results/junit.xml')
+        junit_root = junit_tree.getroot()
+        updated = 0
+        for tc in junit_root.iter('testcase'):
+            classname = tc.get('classname', '')
+            if classname in suite_to_file:
+                tc.set('classname', suite_to_file[classname])
+                updated += 1
+
+        print(f"Updated {updated} testcase classnames to file paths")
+        junit_tree.write('test-results/junit.xml', xml_declaration=True, encoding='UTF-8')
+        PYEOF
+
     - name: Record test results with Smart Tests (file profile)
       if: always()
       run: |
