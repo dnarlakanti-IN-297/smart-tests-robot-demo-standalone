@@ -271,12 +271,12 @@ jobs:
     - name: Record test results with Smart Tests (raw profile)
       if: always()
       run: |
-        if [ -f test-results/output.xml ]; then
+        if [ -f test-results/junit.xml ]; then
           echo "Recording test results to Smart Tests (raw profile)..."
-          smart-tests record tests raw --session @session.txt test-results/output.xml
+          smart-tests record tests raw --session @session.txt test-results/junit.xml
           echo "Test results recorded successfully!"
         else
-          echo "No output.xml found"
+          echo "No junit.xml found"
           ls -la test-results/ || echo "test-results directory not found"
           exit 1
         fi
