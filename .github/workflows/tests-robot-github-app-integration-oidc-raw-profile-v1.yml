@@ -164,8 +164,7 @@ jobs:
       run: |
         set +e
         echo "Requesting raw subset from Smart Tests..."
-        cat testpath.txt | \
-          smart-tests subset raw --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>/tmp/subset-status.txt
+        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>/tmp/subset-status.txt
         EXIT_CODE=$?
         cat /tmp/subset-status.txt || true
         set -e
