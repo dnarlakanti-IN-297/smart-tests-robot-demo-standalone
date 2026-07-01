@@ -218,17 +218,18 @@ jobs:
         for k, v in list(suite_to_file.items())[:3]:
             print(f"  {k!r} -> {v!r}")
 
-        junit_root = ET.parse('test-results/junit.xml').getroot()
         junit_tree = ET.parse('test-results/junit.xml')
         junit_root = junit_tree.getroot()
         updated = 0
         for tc in junit_root.iter('testcase'):
             classname = tc.get('classname', '')
             if classname in suite_to_file:
-                tc.set('classname', suite_to_file[classname])
+                filepath = suite_to_file[classname]
+                tc.set('classname', filepath)
+                tc.set('file', filepath)
                 updated += 1
 
-        print(f"Updated {updated} testcase classnames to file paths")
+        print(f"Updated {updated} testcase classnames+file attrs to file paths")
         junit_tree.write('test-results/junit.xml', xml_declaration=True, encoding='UTF-8')
         PYEOF
 
