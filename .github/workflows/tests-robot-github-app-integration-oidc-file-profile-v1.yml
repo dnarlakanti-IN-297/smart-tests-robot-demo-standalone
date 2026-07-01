@@ -126,7 +126,7 @@ jobs:
       run: |
         set +e
         echo "Collecting Robot test files for file-profile subsetting..."
-        find tests/robot -name "*.robot" | \
+        find tests/robot -name "*.robot" -not -path "*/resources/*" | \
           smart-tests subset file --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>/tmp/subset-status.txt
         EXIT_CODE=$?
         cat /tmp/subset-status.txt || true
