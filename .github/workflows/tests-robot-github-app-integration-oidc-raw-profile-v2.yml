@@ -269,15 +269,54 @@ jobs:
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
 
+    - name: Rewrite junit.xml classnames to file paths (raw profile)
+      if: always()
+      run: |
+        python3 - <<'PYEOF'
+        import xml.etree.ElementTree as ET
+        import os, sys
+
+        if not os.path.exists('test-results/output.xml'):
+            print("No output.xml found, skipping rewrite")
+            sys.exit(0)
+
+        output_root = ET.parse('test-results/output.xml').getroot()
+        test_to_file = {}
+        for suite in output_root.iter('suite'):
+            source = suite.get('source', '')
+            if source.endswith('.robot'):
+                rel_source = os.path.relpath(source)
+                for test in suite.findall('test'):
+                    test_name = test.get('name', '')
+                    if test_name:
+                        test_to_file[test_name] = rel_source
+
+        if not os.path.exists('test-results/junit.xml'):
+            print("No junit.xml found, skipping rewrite")
+            sys.exit(0)
+
+        junit_tree = ET.parse('test-results/junit.xml')
+        updated = 0
+        for tc in junit_tree.getroot().iter('testcase'):
+            test_name = tc.get('name', '')
+            if test_name in test_to_file:
+                filepath = test_to_file[test_name]
+                tc.set('classname', filepath)
+                tc.set('file', filepath)
+                updated += 1
+        junit_tree.write('test-results/junit.xml', xml_declaration=True, encoding='UTF-8')
+        print(f'Mapped {len(test_to_file)} tests, updated {updated} testcases')
+        PYEOF
+
     - name: Record test results with Smart Tests (raw profile)
       if: always()
       run: |
-        if [ -f test-results/output.xml ]; then
+        if [ -f test-results/junit.xml ]; then
           echo "Recording test results to Smart Tests (raw profile)..."
-          smart-tests record tests raw --session @session.txt test-results/output.xml
+          smart-tests record tests raw --session @session.txt test-results/junit.xml
           echo "Test results recorded successfully!"
         else
-          echo "No output.xml found"
+          echo "No junit.xml found"
           ls -la test-results/ || echo "test-results directory not found"
           exit 1
         fi
