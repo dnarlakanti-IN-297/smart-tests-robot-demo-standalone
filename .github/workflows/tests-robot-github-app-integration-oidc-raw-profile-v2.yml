@@ -269,54 +269,57 @@ jobs:
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
 
-    - name: Rewrite junit.xml classnames to file paths (raw profile)
+    - name: Generate raw profile JSON results from output.xml
       if: always()
       run: |
         python3 - <<'PYEOF'
+        # record tests raw with JUnit XML always produces class=<classname>#testcase=<name>,
+        # which never matches the file=<path>#testcase=<name> format used by subset raw.
+        # The only way to record with file= identifiers is to pass a JSON file where
+        # testPath values are constructed explicitly.
         import xml.etree.ElementTree as ET
-        import os, sys
+        import os, sys, json
 
         if not os.path.exists('test-results/output.xml'):
-            print("No output.xml found, skipping rewrite")
+            print("No output.xml found, skipping JSON generation")
             sys.exit(0)
 
-        output_root = ET.parse('test-results/output.xml').getroot()
-        test_to_file = {}
-        for suite in output_root.iter('suite'):
+        root = ET.parse('test-results/output.xml').getroot()
+        test_cases = []
+        for suite in root.iter('suite'):
             source = suite.get('source', '')
-            if source.endswith('.robot'):
-                rel_source = os.path.relpath(source)
-                for test in suite.findall('test'):
-                    test_name = test.get('name', '')
-                    if test_name:
-                        test_to_file[test_name] = rel_source
+            if not source.endswith('.robot'):
+                continue
+            rel_source = os.path.relpath(source)
+            for test in suite.findall('test'):
+                test_name = test.get('name', '')
+                if not test_name:
+                    continue
+                status_elem = test.find('status')
+                if status_elem is None:
+                    continue
+                status = status_elem.get('status', 'FAIL')
+                elapsed = float(status_elem.get('elapsed', '0') or '0')
+                test_cases.append({
+                    'testPath': f'file={rel_source}#testcase={test_name}',
+                    'status': 'TEST_PASSED' if status == 'PASS' else 'TEST_FAILED',
+                    'duration': elapsed
+                })
 
-        if not os.path.exists('test-results/junit.xml'):
-            print("No junit.xml found, skipping rewrite")
-            sys.exit(0)
-
-        junit_tree = ET.parse('test-results/junit.xml')
-        updated = 0
-        for tc in junit_tree.getroot().iter('testcase'):
-            test_name = tc.get('name', '')
-            if test_name in test_to_file:
-                filepath = test_to_file[test_name]
-                tc.set('classname', filepath)
-                tc.set('file', filepath)
-                updated += 1
-        junit_tree.write('test-results/junit.xml', xml_declaration=True, encoding='UTF-8')
-        print(f'Mapped {len(test_to_file)} tests, updated {updated} testcases')
+        with open('test-results/raw-results.json', 'w') as f:
+            json.dump({'testCases': test_cases}, f)
+        print(f'Generated {len(test_cases)} test results in raw-results.json')
         PYEOF
 
     - name: Record test results with Smart Tests (raw profile)
       if: always()
       run: |
-        if [ -f test-results/junit.xml ]; then
+        if [ -f test-results/raw-results.json ]; then
           echo "Recording test results to Smart Tests (raw profile)..."
-          smart-tests record tests raw --session @session.txt test-results/junit.xml
+          smart-tests record tests raw --session @session.txt test-results/raw-results.json
           echo "Test results recorded successfully!"
         else
-          echo "No junit.xml found"
+          echo "No raw-results.json found"
           ls -la test-results/ || echo "test-results directory not found"
           exit 1
         fi
