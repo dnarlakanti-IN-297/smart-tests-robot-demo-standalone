@@ -65,9 +65,11 @@ jobs:
       # GitHub OIDC auth — replaces SMART_TESTS_TOKEN secret
       EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
       # Must be UUID values — find in CloudBees Unify > Admin Settings > Organization Profile
-      # Set SMART_TESTS_ORGANIZATION_v2 and SMART_TESTS_WORKSPACE_v2 as repository variables
-      SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v2 }}
-      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_v2 }}
+      # Use _raw-suffixed variables — Smart Tests locks a workspace to the first profile type it
+      # receives, so raw and file profile workflows must use separate workspaces to avoid 422 errors.
+      # Set SMART_TESTS_ORGANIZATION_v2_raw and SMART_TESTS_WORKSPACE_v2_raw as repository variables.
+      SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v2_raw }}
+      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_v2_raw }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && format('--{0} {1}', inputs.optimization_target_type, inputs.optimization_target_value) || '--target 75%' }}
       SIMULATED_LATENCY_MS: 500
