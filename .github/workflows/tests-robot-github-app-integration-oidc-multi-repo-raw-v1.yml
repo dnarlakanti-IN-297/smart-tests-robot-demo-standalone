@@ -69,7 +69,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: anuddeeph2/smart-tests-multi-repo-demo
-        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.multi_repo_ref || 'main' }}
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.multi_repo_ref || 'patch-multi-repo-raw' }}
         # PAT needed: github.token only grants access to the repo running this workflow,
         # not to other private repos — even in the same account.
         # Create a PAT with `repo` scope in anuddeeph2 and add it as secret MULTI_REPO_PAT
