@@ -11,7 +11,7 @@ name: Multi-Repo Robot Tests (GitHub App - OIDC - Raw Profile - PTSv1)
 
 on:
   push:
-    branches: [ main, 'patch-multi-repo-raw-v1' ]
+    branches: [ main, 'patch-multi-repo-raw' ]
   workflow_dispatch:
     inputs:
       mode:
