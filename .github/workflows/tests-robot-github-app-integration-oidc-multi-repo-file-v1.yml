@@ -125,29 +125,28 @@ jobs:
 
     - name: Create Smart Tests subset (file profile)
       shell: bash
-      working-directory: multi-repo-app
       run: |
         set +e
         echo "Collecting Robot test files for file-profile subsetting..."
-        find tests/robot -name "*.robot" -not -path "*/resources/*" | \
-          smart-tests subset file --session @$GITHUB_WORKSPACE/session.txt $TARGET_FLAG > $GITHUB_WORKSPACE/smart-tests-subset.txt 2>/tmp/subset-status.txt
+        find multi-repo-app/tests/robot -name "*.robot" -not -path "*/resources/*" | \
+          smart-tests subset file --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>/tmp/subset-status.txt
         EXIT_CODE=$?
         cat /tmp/subset-status.txt || true
         set -e
 
         if [ $EXIT_CODE -ne 0 ]; then
           echo "Smart Tests subset failed, falling back to ALL tests"
-          echo "ALL" > $GITHUB_WORKSPACE/smart-tests-subset.txt
+          echo "ALL" > smart-tests-subset.txt
         fi
 
         echo "Subset result:"
-        cat $GITHUB_WORKSPACE/smart-tests-subset.txt
-        echo "Files in subset: $(wc -l < $GITHUB_WORKSPACE/smart-tests-subset.txt)"
+        cat smart-tests-subset.txt
+        echo "Files in subset: $(wc -l < smart-tests-subset.txt)"
 
     - name: Start book library app and run Robot tests
       continue-on-error: true
-      working-directory: multi-repo-app
       run: |
+        cd multi-repo-app
         DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         APP_PID=$!
 
@@ -159,35 +158,85 @@ jobs:
         }
         echo "Application is ready!"
 
-        mkdir -p $GITHUB_WORKSPACE/test-results
-        SUBSET_CONTENT=$(cat $GITHUB_WORKSPACE/smart-tests-subset.txt)
+        cd $GITHUB_WORKSPACE
+        mkdir -p test-results
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
 
-        if [ -s $GITHUB_WORKSPACE/smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
           echo "Running Robot Framework with file subset:"
-          cat $GITHUB_WORKSPACE/smart-tests-subset.txt
+          cat smart-tests-subset.txt
           robot \
-            --outputdir $GITHUB_WORKSPACE/test-results \
+            --outputdir test-results \
             --output output.xml \
             --log log.html \
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            $(cat $GITHUB_WORKSPACE/smart-tests-subset.txt) || true
+            $(cat smart-tests-subset.txt) || true
         else
           echo "Running all Robot Framework tests"
           robot \
-            --outputdir $GITHUB_WORKSPACE/test-results \
+            --outputdir test-results \
             --output output.xml \
             --log log.html \
             --report report.html \
             --xunit junit.xml \
             --loglevel INFO \
-            tests/robot/ || true
+            multi-repo-app/tests/robot/ || true
         fi
 
         kill $APP_PID 2>/dev/null || true
       env:
         DATABASE_URL: sqlite:///./library.db
+
+    - name: Rewrite junit.xml classnames to file paths (required for file profile)
+      if: always()
+      run: |
+        if [ ! -f test-results/junit.xml ] || [ ! -f test-results/output.xml ]; then
+          echo "Skipping: required files not found"
+          exit 0
+        fi
+        python3 - <<'PYEOF'
+        import xml.etree.ElementTree as ET
+        import os
+
+        # output.xml has source= attributes with the actual .robot file paths.
+        # Map by test NAME (not classname) so the lookup works whether Robot was
+        # invoked with a directory or explicit file paths — the two invocation
+        # styles produce different classname hierarchies in junit.xml but the
+        # individual test name is always stable.
+        # Running from GITHUB_WORKSPACE: os.path.relpath produces
+        # multi-repo-app/tests/robot/... which matches the subset paths.
+        output_root = ET.parse('test-results/output.xml').getroot()
+        test_to_file = {}
+
+        for suite in output_root.iter('suite'):
+            source = suite.get('source', '')
+            if source.endswith('.robot'):
+                rel_source = os.path.relpath(source)
+                for test in suite.findall('test'):
+                    test_name = test.get('name', '')
+                    if test_name:
+                        test_to_file[test_name] = rel_source
+
+        print(f"Mapped {len(test_to_file)} test names to .robot files")
+        for k, v in list(test_to_file.items())[:3]:
+            print(f"  {k!r} -> {v!r}")
+
+        junit_tree = ET.parse('test-results/junit.xml')
+        junit_root = junit_tree.getroot()
+        updated = 0
+        for tc in junit_root.iter('testcase'):
+            test_name = tc.get('name', '')
+            if test_name in test_to_file:
+                filepath = test_to_file[test_name]
+                tc.set('classname', filepath)
+                tc.set('file', filepath)
+                updated += 1
+
+        print(f"Updated {updated} testcase classnames+file attrs to file paths")
+        junit_tree.write('test-results/junit.xml', xml_declaration=True, encoding='UTF-8')
+        PYEOF
 
     - name: Record test results with Smart Tests (file profile)
       if: always()
