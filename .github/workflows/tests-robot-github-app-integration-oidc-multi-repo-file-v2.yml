@@ -1,0 +1,226 @@
+name: Multi-Repo Robot Tests (GitHub App - OIDC - File Profile - PTSv2)
+
+# Multi-repo Scenario B — centralized test orchestration:
+# ✅ Checks out smart-tests-multi-repo-demo (book library app + tests)
+# ✅ Records build with --no-commit-collection --commit for BOTH repos
+# ✅ Smart Tests correlates book library code changes to test failures
+# ✅ File profile (subset file / record tests file)
+# ✅ GitHub OIDC auth — no SMART_TESTS_TOKEN secret required
+# 📚 Multi-repo docs: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/record-builds/record-builds-from-multiple-repositories
+
+on:
+  push:
+    branches: [ main, 'patch-multi-repo-file-v2' ]
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Smart Tests mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      optimization_target_type:
+        description: 'Optimization target type: target (% of expected duration), confidence (Y-axis probability), time (X-axis fixed budget)'
+        required: true
+        type: choice
+        default: 'target'
+        options:
+          - target
+          - confidence
+          - time
+      optimization_target_value:
+        description: 'Target value — % for target/confidence (e.g. 75%), or duration for time (e.g. 10m)'
+        required: true
+        default: '75%'
+        type: string
+      multi_repo_ref:
+        description: 'Branch or SHA of smart-tests-multi-repo-demo to test against (default: main)'
+        required: false
+        default: 'main'
+        type: string
+
+jobs:
+  multi-repo-file-ptsv2:
+    name: Multi-Repo Book Library Tests (File Profile - PTSv2)
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
+      SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v2 }}
+      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_V2_MULTI_REPO }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && format('--{0} {1}', inputs.optimization_target_type, inputs.optimization_target_value) || '--target 75%' }}
+      SIMULATED_LATENCY_MS: 500
+
+    steps:
+    - name: Checkout smart-tests-robot-demo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Checkout smart-tests-multi-repo-demo
+      uses: actions/checkout@v4
+      with:
+        repository: anuddeeph2/smart-tests-multi-repo-demo
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.multi_repo_ref || 'main' }}
+        # PAT needed: github.token only grants access to the repo running this workflow,
+        # not to other private repos — even in the same account.
+        # Create a PAT with `repo` scope in anuddeeph2 and add it as secret MULTI_REPO_PAT
+        # in anuddeeph2/smart-tests-robot-demo.
+        token: ${{ secrets.MULTI_REPO_PAT }}
+        path: multi-repo-app
+        fetch-depth: 0
+
+    - name: Get smart-tests-multi-repo-demo commit SHA
+      id: multi-repo-sha
+      run: echo "sha=$(git -C multi-repo-app rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r multi-repo-app/requirements.txt
+        pip install -r multi-repo-app/requirements-robot.txt
+        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+
+    - name: Verify Smart Tests connectivity
+      run: smart-tests verify || true
+
+    - name: Record commits with Smart Tests
+      run: |
+        smart-tests record commit --name ${{ github.repository }} --source ${{ github.workspace }} --max-days 90
+
+    - name: Record build with Smart Tests (multi-repo)
+      run: |
+        smart-tests record build --build ${{ github.run_id }} \
+          --no-commit-collection \
+          --commit ${{ github.repository }}=${{ github.sha }} \
+          --commit anuddeeph2/smart-tests-multi-repo-demo=${{ steps.multi-repo-sha.outputs.sha }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite book-library-multi-repo-file-v2 > session.txt
+        cat session.txt
+        echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
+        echo "Target: $TARGET_FLAG"
+        echo "Book library SHA: ${{ steps.multi-repo-sha.outputs.sha }}"
+
+    - name: Initialize book library database
+      working-directory: multi-repo-app
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Create Smart Tests subset (file profile)
+      shell: bash
+      working-directory: multi-repo-app
+      run: |
+        set +e
+        echo "Collecting Robot test files for file-profile subsetting..."
+        find tests/robot -name "*.robot" -not -path "*/resources/*" | \
+          smart-tests subset file --session @$GITHUB_WORKSPACE/session.txt $TARGET_FLAG > $GITHUB_WORKSPACE/smart-tests-subset.txt 2>/tmp/subset-status.txt
+        EXIT_CODE=$?
+        cat /tmp/subset-status.txt || true
+        set -e
+
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "Smart Tests subset failed, falling back to ALL tests"
+          echo "ALL" > $GITHUB_WORKSPACE/smart-tests-subset.txt
+        fi
+
+        echo "Subset result:"
+        cat $GITHUB_WORKSPACE/smart-tests-subset.txt
+        echo "Files in subset: $(wc -l < $GITHUB_WORKSPACE/smart-tests-subset.txt)"
+
+    - name: Start book library app and run Robot tests
+      continue-on-error: true
+      working-directory: multi-repo-app
+      run: |
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        mkdir -p $GITHUB_WORKSPACE/test-results
+        SUBSET_CONTENT=$(cat $GITHUB_WORKSPACE/smart-tests-subset.txt)
+
+        if [ -s $GITHUB_WORKSPACE/smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          echo "Running Robot Framework with file subset:"
+          cat $GITHUB_WORKSPACE/smart-tests-subset.txt
+          robot \
+            --outputdir $GITHUB_WORKSPACE/test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $(cat $GITHUB_WORKSPACE/smart-tests-subset.txt) || true
+        else
+          echo "Running all Robot Framework tests"
+          robot \
+            --outputdir $GITHUB_WORKSPACE/test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            tests/robot/ || true
+        fi
+
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./library.db
+
+    - name: Record test results with Smart Tests (file profile)
+      if: always()
+      run: |
+        if [ -f test-results/junit.xml ]; then
+          echo "Recording test results to Smart Tests (file profile)..."
+          smart-tests record tests file --session @session.txt test-results/junit.xml
+          echo "Test results recorded successfully!"
+        else
+          echo "No junit.xml found"
+          ls -la test-results/ || echo "test-results directory not found"
+          exit 1
+        fi
+
+    - name: Store Test Results for Smart Tests (GitHub App)
+      if: always()
+      uses: cloudbees-oss/smart-tests-results-upload-action@v1
+
+    - name: Upload Robot Framework results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-results-multi-repo-file-v2
+        path: test-results/
+        retention-days: 30
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Test Summary (Multi-Repo File Profile PTSv2) ==="
+          echo "smart-tests-robot-demo SHA: ${{ github.sha }}"
+          echo "smart-tests-multi-repo-demo SHA: ${{ steps.multi-repo-sha.outputs.sha }}"
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print(str(s.get("pass")) + " passed, " + str(s.get("fail")) + " failed") if s is not None else None' || echo "Could not parse test results"
+        else
+          echo "No test results found"
+        fi
