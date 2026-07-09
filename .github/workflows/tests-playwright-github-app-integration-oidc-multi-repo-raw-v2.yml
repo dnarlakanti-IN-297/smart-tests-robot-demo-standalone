@@ -46,7 +46,7 @@ on:
 jobs:
   multi-repo-playwright-raw-ptsv2:
     name: Multi-Repo Playwright Tests (Raw Profile - PTSv2)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
 
     permissions:
       id-token: write
