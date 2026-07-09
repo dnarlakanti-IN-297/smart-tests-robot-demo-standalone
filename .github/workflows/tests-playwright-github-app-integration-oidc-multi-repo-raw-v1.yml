@@ -191,13 +191,17 @@ jobs:
         echo "First testpath: $(head -1 testpath.txt)"
         echo "Java: $(java -version 2>&1 | head -1)"
         echo "smart-tests version: $(smart-tests --version 2>&1)"
-        echo "--- Running subset raw (stdout+stderr split) ---"
-        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>smart-tests-subset.err
+        echo "--- subset raw help ---"
+        smart-tests subset raw --help 2>&1 || true
+        echo "--- Running subset raw (no redirect - raw log output) ---"
+        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt
         EXIT_CODE=$?
         echo "Exit code: $EXIT_CODE"
-        echo "=== subset raw stdout ==="
+        echo "=== subset raw re-run with redirect ==="
+        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>smart-tests-subset.err || true
+        echo "stdout:"
         cat smart-tests-subset.txt
-        echo "=== subset raw stderr ==="
+        echo "stderr:"
         cat smart-tests-subset.err
         echo "========================="
         set -e
