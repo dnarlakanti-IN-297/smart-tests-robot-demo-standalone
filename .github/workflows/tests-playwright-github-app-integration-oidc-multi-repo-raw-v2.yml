@@ -135,7 +135,7 @@ jobs:
       working-directory: multi-repo-app
       run: |
         echo "Collecting Playwright test titles from --list output..."
-        { npx playwright test --list 2>/dev/null || true; } | python3 - <<'PYEOF'
+        { npx playwright test --list 2>&1 || true; } | python3 - <<'PYEOF'
         import sys, re, os
 
         # Playwright --list reports paths relative to testDir, e.g. "api/foo.spec.ts" not "tests/playwright/api/foo.spec.ts"
