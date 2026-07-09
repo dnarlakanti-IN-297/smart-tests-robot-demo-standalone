@@ -193,16 +193,12 @@ jobs:
         echo "smart-tests version: $(smart-tests --version 2>&1)"
         echo "--- subset raw help ---"
         smart-tests subset raw --help 2>&1 || true
-        echo "--- Running subset raw (no redirect - raw log output) ---"
-        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt
+        echo "--- Running subset raw with DEBUG logging ---"
+        smart-tests subset raw --log-level DEBUG --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>&1 || true
         EXIT_CODE=$?
         echo "Exit code: $EXIT_CODE"
-        echo "=== subset raw re-run with redirect ==="
-        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>smart-tests-subset.err || true
-        echo "stdout:"
+        echo "=== subset raw output (DEBUG) ==="
         cat smart-tests-subset.txt
-        echo "stderr:"
-        cat smart-tests-subset.err
         echo "========================="
         set -e
 
