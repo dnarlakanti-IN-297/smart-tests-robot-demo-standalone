@@ -40,7 +40,7 @@ on:
 jobs:
   robot-ptsv1-quick:
     name: Robot Framework API Tests (PTSv1 Quick - 40 tests)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
     env:
       SMART_TESTS_TOKEN: ${{ secrets.PTSv1_TOKEN }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}

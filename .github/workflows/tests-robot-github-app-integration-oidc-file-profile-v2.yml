@@ -53,7 +53,7 @@ on:
 jobs:
   robot-file-profile-ptsv2:
     name: Robot Framework API Tests (File Profile - OIDC - PTSv2)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
 
     # Required for GitHub OIDC token issuance — do not remove
     permissions:
