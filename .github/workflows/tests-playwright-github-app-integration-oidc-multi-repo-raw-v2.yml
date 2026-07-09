@@ -138,6 +138,10 @@ jobs:
         # playwright --list writes to stderr; capture both streams to a file to avoid pipe+heredoc stdin conflict
         npx playwright test --list > /tmp/playwright_list.txt 2>&1 || true
 
+        echo "=== playwright --list raw output (first 20 lines) ==="
+        head -20 /tmp/playwright_list.txt || echo "(empty)"
+        echo "=== end ==="
+
         python3 <<'PYEOF'
         import re, os
 
