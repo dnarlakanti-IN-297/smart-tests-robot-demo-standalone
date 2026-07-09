@@ -13,7 +13,7 @@ on:
 jobs:
   robot-all-tests-baseline:
     name: Robot Framework - ALL Tests (Baseline - No Smart Tests)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
 
     steps:
     - name: Checkout code

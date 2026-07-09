@@ -44,7 +44,7 @@ on:
 jobs:
   robot-ptsv1-quick:
     name: Robot Framework API Tests (GitHub App - OIDC - PTSv1 Quick - 40 tests)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
 
     # Required for GitHub OIDC token issuance — do not remove
     permissions:
