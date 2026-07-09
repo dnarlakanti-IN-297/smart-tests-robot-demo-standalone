@@ -98,7 +98,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-robot.txt
-        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+        pip3 install --no-cache-dir smart-tests-cli==2.12.4
 
     - name: Verify Smart Tests connectivity
       run: |
