@@ -176,9 +176,15 @@ jobs:
       run: |
         set +e
         echo "Requesting raw subset from Smart Tests..."
-        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>/tmp/subset-status.txt
+        echo "Session: $(cat session.txt)"
+        echo "Target flag: $TARGET_FLAG"
+        echo "testpath.txt line count: $(wc -l < testpath.txt)"
+        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
-        cat /tmp/subset-status.txt || true
+        echo "Exit code: $EXIT_CODE"
+        echo "=== subset raw output ==="
+        cat smart-tests-subset.txt
+        echo "========================="
         set -e
 
         if [ $EXIT_CODE -ne 0 ]; then
