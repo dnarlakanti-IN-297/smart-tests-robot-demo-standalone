@@ -207,12 +207,12 @@ jobs:
         updated = 0
 
         for testsuite in root.iter('testsuite'):
-            filepath = testsuite.get('file', '')
+            # Playwright JUnit uses 'name' (not 'file') for the spec path, relative to testDir
+            filepath = testsuite.get('file') or testsuite.get('name', '')
             if not filepath:
                 continue
-            # Playwright reports relative to its working dir (multi-repo-app/)
-            # Prefix with multi-repo-app/ to match subset paths from find
-            rel_path = os.path.normpath(os.path.join('multi-repo-app', filepath))
+            # testDir is tests/playwright/, so prefix multi-repo-app/tests/playwright/
+            rel_path = os.path.normpath(os.path.join('multi-repo-app', 'tests', 'playwright', filepath))
             for tc in testsuite.findall('testcase'):
                 tc.set('classname', rel_path)
                 tc.set('file', rel_path)
