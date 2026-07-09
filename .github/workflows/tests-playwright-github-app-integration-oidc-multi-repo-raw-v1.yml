@@ -156,6 +156,8 @@ jobs:
                 filepath = os.path.normpath(os.path.join('tests', 'playwright', m.group(1)))
                 # Normalize › to " > " to match Playwright JSON results format
                 full_title = m.group(2).strip().replace(' › ', ' > ')
+                # Encode URL special chars that break testPath parsing (? = query separator)
+                full_title = full_title.replace('?', '%3F').replace('&', '%26')
                 key = f'file={filepath}#testcase={full_title}'
                 if key not in seen:
                     seen.add(key)
@@ -302,6 +304,8 @@ jobs:
                 for spec in suite.get('specs', []):
                     spec_title = spec.get('title', '')
                     full_title = f'{title} > {spec_title}' if title else spec_title
+                    # Encode URL special chars that break testPath parsing (? = query separator)
+                    full_title = full_title.replace('?', '%3F').replace('&', '%26')
                     for test in spec.get('tests', []):
                         for result in test.get('results', []):
                             status = result.get('status', 'failed')
