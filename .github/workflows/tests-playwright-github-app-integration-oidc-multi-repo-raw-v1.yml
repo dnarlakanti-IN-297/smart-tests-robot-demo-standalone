@@ -316,8 +316,11 @@ jobs:
             for suite in suites:
                 raw_file = suite.get('file')
                 if raw_file is not None:
-                    # file attr is relative to multi-repo-app/ (playwright testDir); use as-is
-                    suite_file = os.path.normpath(raw_file)
+                    # normalize to the same 'tests/playwright/<spec>' prefix the subset request uses,
+                    # so recorded results correlate with the subset testPaths
+                    sf = os.path.normpath(raw_file)
+                    _m = 'tests/playwright/'
+                    suite_file = (_m + sf.split(_m, 1)[1]) if _m in sf else (_m + sf)
                 else:
                     suite_file = filepath  # inherited from parent suite
                 title = suite.get('title', '')
