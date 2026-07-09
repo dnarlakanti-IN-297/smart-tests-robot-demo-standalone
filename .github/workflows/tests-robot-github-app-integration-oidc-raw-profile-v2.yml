@@ -65,9 +65,12 @@ jobs:
       # GitHub OIDC auth — replaces SMART_TESTS_TOKEN secret
       EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
       # Must be UUID values — find in CloudBees Unify > Admin Settings > Organization Profile
-      # Set SMART_TESTS_ORGANIZATION_v2 and SMART_TESTS_WORKSPACE_v2 as repository variables
+      # Organization is the same across all profile types; only workspace needs _raw isolation.
+      # Smart Tests locks a workspace to the first profile type it receives — raw and file profile
+      # workflows must use separate workspaces to avoid 422 errors.
+      # Set SMART_TESTS_WORKSPACE_v2_raw as a repository variable (separate from SMART_TESTS_WORKSPACE_v2).
       SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v2 }}
-      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_v2 }}
+      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_v2_raw }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && format('--{0} {1}', inputs.optimization_target_type, inputs.optimization_target_value) || '--target 75%' }}
       SIMULATED_LATENCY_MS: 500
@@ -163,8 +166,7 @@ jobs:
       run: |
         set +e
         echo "Requesting raw subset from Smart Tests..."
-        cat testpath.txt | \
-          smart-tests subset raw --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>/tmp/subset-status.txt
+        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>/tmp/subset-status.txt
         EXIT_CODE=$?
         cat /tmp/subset-status.txt || true
         set -e
@@ -267,15 +269,57 @@ jobs:
       env:
         DATABASE_URL: sqlite:///./issue_tracker.db
 
+    - name: Generate raw profile JSON results from output.xml
+      if: always()
+      run: |
+        python3 - <<'PYEOF'
+        # record tests raw with JUnit XML always produces class=<classname>#testcase=<name>,
+        # which never matches the file=<path>#testcase=<name> format used by subset raw.
+        # The only way to record with file= identifiers is to pass a JSON file where
+        # testPath values are constructed explicitly.
+        import xml.etree.ElementTree as ET
+        import os, sys, json
+
+        if not os.path.exists('test-results/output.xml'):
+            print("No output.xml found, skipping JSON generation")
+            sys.exit(0)
+
+        root = ET.parse('test-results/output.xml').getroot()
+        test_cases = []
+        for suite in root.iter('suite'):
+            source = suite.get('source', '')
+            if not source.endswith('.robot'):
+                continue
+            rel_source = os.path.relpath(source)
+            for test in suite.findall('test'):
+                test_name = test.get('name', '')
+                if not test_name:
+                    continue
+                status_elem = test.find('status')
+                if status_elem is None:
+                    continue
+                status = status_elem.get('status', 'FAIL')
+                elapsed = float(status_elem.get('elapsed', '0') or '0')
+                test_cases.append({
+                    'testPath': f'file={rel_source}#testcase={test_name}',
+                    'status': 'TEST_PASSED' if status == 'PASS' else 'TEST_FAILED',
+                    'duration': elapsed
+                })
+
+        with open('test-results/raw-results.json', 'w') as f:
+            json.dump({'testCases': test_cases}, f)
+        print(f'Generated {len(test_cases)} test results in raw-results.json')
+        PYEOF
+
     - name: Record test results with Smart Tests (raw profile)
       if: always()
       run: |
-        if [ -f test-results/output.xml ]; then
+        if [ -f test-results/raw-results.json ]; then
           echo "Recording test results to Smart Tests (raw profile)..."
-          smart-tests record tests raw --session @session.txt test-results/output.xml
+          smart-tests record tests raw --session @session.txt test-results/raw-results.json
           echo "Test results recorded successfully!"
         else
-          echo "No output.xml found"
+          echo "No raw-results.json found"
           ls -la test-results/ || echo "test-results directory not found"
           exit 1
         fi
