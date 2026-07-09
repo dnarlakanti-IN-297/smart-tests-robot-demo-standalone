@@ -41,7 +41,7 @@ on:
 jobs:
   robot-ptsv1-tests:
     name: Robot Framework API Tests (Smart Tests CLI)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
     env:
       SMART_TESTS_TOKEN: ${{ secrets.PTSv1_TOKEN }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}

@@ -45,7 +45,7 @@ on:
 jobs:
   multi-repo-file-ptsv1:
     name: Multi-Repo Book Library Tests (File Profile - PTSv1)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
 
     permissions:
       id-token: write
