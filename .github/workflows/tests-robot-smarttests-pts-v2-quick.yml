@@ -1,7 +1,7 @@
 name: Robot Framework Tests (Quick - PTSv2)
 
 # Smart Tests CLI Integration for Robot Framework (PTSv2 quick branch):
-# ✅ Uses smart-tests-cli==2.11.2
+# ✅ Uses smart-tests-cli==2.12.4
 # ✅ 40 tests, 0ms latency — fast demo for PTSv2
 # ✅ Same seven-step pattern as full PTSv2 workflow
 # 📚 Documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
@@ -71,7 +71,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-robot.txt
-        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+        pip3 install --no-cache-dir smart-tests-cli==2.12.4
 
     - name: Verify Smart Tests connectivity
       run: |

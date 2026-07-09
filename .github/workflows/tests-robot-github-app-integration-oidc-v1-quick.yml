@@ -1,7 +1,7 @@
 name: Robot Framework Tests (Quick - GitHub App - OIDC - PTSv1)
 
 # Smart Tests GitHub App Integration with GitHub OIDC Authentication (PTSv1 quick branch):
-# ✅ Uses smart-tests-cli==2.11.2 — same CLI as PTSv2, token determines engine
+# ✅ Uses smart-tests-cli==2.12.4 — same CLI as PTSv2, token determines engine
 # ✅ GitHub OIDC token auth — no SMART_TESTS_TOKEN secret required
 # ✅ GitHub App (cloudbees-oss/smart-tests-results-upload-action@v1) for results upload
 # ✅ 40 tests, 0ms latency — fast warm-up runs for PTSv1 OIDC
@@ -86,7 +86,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-robot.txt
-        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+        pip3 install --no-cache-dir smart-tests-cli==2.12.4
 
     - name: Verify Smart Tests connectivity
       run: |

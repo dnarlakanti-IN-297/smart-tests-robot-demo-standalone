@@ -1,7 +1,7 @@
 name: Robot Framework Tests (PTSv1)
 
 # Smart Tests CLI Integration for Robot Framework (PTS v1 branch):
-# ✅ Uses smart-tests-cli==2.11.2 — same CLI as PTSv2, token determines engine
+# ✅ Uses smart-tests-cli==2.12.4 — same CLI as PTSv2, token determines engine
 # ✅ smart-tests subset robot with --dry-run-report
 # ✅ smart-tests record tests robot with output.xml
 # ✅ eval used to handle single-quoted subset args correctly
@@ -71,7 +71,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-robot.txt
-        pip3 install --no-cache-dir smart-tests-cli==2.11.2
+        pip3 install --no-cache-dir smart-tests-cli==2.12.4
 
     - name: Verify Smart Tests connectivity
       run: |
