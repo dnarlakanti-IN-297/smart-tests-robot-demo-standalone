@@ -135,17 +135,19 @@ jobs:
       working-directory: multi-repo-app
       run: |
         echo "Collecting Playwright test titles from --list output..."
-        npx playwright test --list 2>/dev/null | python3 - <<'PYEOF'
+        { npx playwright test --list 2>/dev/null || true; } | python3 - <<'PYEOF'
         import sys, re, os
 
-        pattern = re.compile(r'\[.*?\]\s+›\s+(tests/playwright/\S+\.spec\.ts):\d+:\d+\s+›\s+(.+)')
+        # Playwright --list reports paths relative to testDir, e.g. "api/foo.spec.ts" not "tests/playwright/api/foo.spec.ts"
+        pattern = re.compile(r'\[.*?\]\s+›\s+(\S+\.spec\.ts):\d+:\d+\s+›\s+(.+)')
         paths = []
         seen = set()
         for line in sys.stdin:
             m = pattern.search(line)
             if not m:
                 continue
-            filepath = os.path.normpath(os.path.join('multi-repo-app', m.group(1)))
+            # testDir is tests/playwright/, prefix multi-repo-app/tests/playwright/ to match subset paths
+            filepath = os.path.normpath(os.path.join('multi-repo-app', 'tests', 'playwright', m.group(1)))
             full_title = m.group(2).strip()
             key = f'file={filepath}#testcase={full_title}'
             if key not in seen:
