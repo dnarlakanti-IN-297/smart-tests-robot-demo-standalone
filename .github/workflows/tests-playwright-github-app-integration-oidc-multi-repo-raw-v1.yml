@@ -152,7 +152,8 @@ jobs:
                 if not m:
                     continue
                 # testDir is tests/playwright/, prefix multi-repo-app/tests/playwright/ to match subset paths
-                filepath = os.path.normpath(os.path.join('multi-repo-app', 'tests', 'playwright', m.group(1)))
+                # paths relative to multi-repo-app/ (matching Robot approach — no multi-repo-app/ prefix)
+                filepath = os.path.normpath(os.path.join('tests', 'playwright', m.group(1)))
                 # Normalize › to " > " to match Playwright JSON results format
                 full_title = m.group(2).strip().replace(' › ', ' > ')
                 key = f'file={filepath}#testcase={full_title}'
@@ -160,15 +161,16 @@ jobs:
                     seen.add(key)
                     paths.append(key)
 
-        with open('../testpath.txt', 'w') as f:
+        testpath_file = os.environ['GITHUB_WORKSPACE'] + '/testpath.txt'
+        with open(testpath_file, 'w') as f:
             f.write('\n'.join(paths) + '\n')
 
         print(f'Generated {len(paths)} testPath entries')
         PYEOF
 
         echo "Sample testPath entries:"
-        head -5 ../testpath.txt
-        echo "Total: $(wc -l < ../testpath.txt) test paths"
+        head -5 $GITHUB_WORKSPACE/testpath.txt
+        echo "Total: $(wc -l < $GITHUB_WORKSPACE/testpath.txt) test paths"
 
     - name: Create Smart Tests subset (raw profile)
       shell: bash
@@ -212,8 +214,7 @@ jobs:
                 if '#testcase=' in line:
                     file_part, tc_part = line.split('#testcase=', 1)
                     filepath = file_part.replace('file=', '', 1)
-                    # Strip multi-repo-app/ prefix for playwright invocation
-                    files.add(filepath.replace('multi-repo-app/', '', 1))
+                    files.add(filepath)
                     test_titles.append(tc_part)
                 else:
                     filepath = line.replace('file=', '', 1)
@@ -287,10 +288,10 @@ jobs:
             for suite in suites:
                 raw_file = suite.get('file')
                 if raw_file is not None:
-                    # file attr is relative to multi-repo-app/; prefix once here
-                    suite_file = os.path.normpath(os.path.join('multi-repo-app', raw_file))
+                    # file attr is relative to multi-repo-app/ (playwright testDir); use as-is
+                    suite_file = os.path.normpath(raw_file)
                 else:
-                    suite_file = filepath  # already prefixed; don't add multi-repo-app/ again
+                    suite_file = filepath  # inherited from parent suite
                 title = suite.get('title', '')
                 for spec in suite.get('specs', []):
                     spec_title = spec.get('title', '')
