@@ -163,7 +163,7 @@ jobs:
                 # Normalize › to " > " to match Playwright JSON results format
                 full_title = m.group(2).strip().replace(' › ', ' > ')
                 # Encode URL special chars that break testPath parsing (? = query separator)
-                full_title = full_title.replace('?', '%3F').replace('&', '%26')
+                full_title = full_title.replace('%', '%25').replace('#', '%23').replace('=', '%3D').replace('?', '%3F').replace('&', '%26')
                 key = f'file={filepath}#testcase={full_title}'
                 if key not in seen:
                     seen.add(key)
@@ -317,7 +317,7 @@ jobs:
                     spec_title = spec.get('title', '')
                     full_title = f'{title} > {spec_title}' if title else spec_title
                     # Encode URL special chars that break testPath parsing (? = query separator)
-                    full_title = full_title.replace('?', '%3F').replace('&', '%26')
+                    full_title = full_title.replace('%', '%25').replace('#', '%23').replace('=', '%3D').replace('?', '%3F').replace('&', '%26')
                     for test in spec.get('tests', []):
                         for result in test.get('results', []):
                             status = result.get('status', 'failed')
