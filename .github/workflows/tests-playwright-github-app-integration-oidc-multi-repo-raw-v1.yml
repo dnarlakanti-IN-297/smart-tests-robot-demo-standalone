@@ -194,7 +194,7 @@ jobs:
         echo "--- subset raw help ---"
         smart-tests subset raw --help 2>&1 || true
         echo "--- Running subset raw with DEBUG logging ---"
-        smart-tests subset raw --log-level DEBUG --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>&1 || true
+        smart-tests subset raw --log-level DEBUG --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>&1
         EXIT_CODE=$?
         echo "Exit code: $EXIT_CODE"
         echo "=== subset raw output (DEBUG) ==="
