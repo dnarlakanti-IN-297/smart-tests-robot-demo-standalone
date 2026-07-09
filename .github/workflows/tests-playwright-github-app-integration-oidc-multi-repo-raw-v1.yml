@@ -138,15 +138,11 @@ jobs:
         # playwright --list writes to stderr; capture both streams to a file to avoid pipe+heredoc stdin conflict
         npx playwright test --list > /tmp/playwright_list.txt 2>&1 || true
 
-        echo "=== playwright --list raw output (first 20 lines) ==="
-        head -20 /tmp/playwright_list.txt || echo "(empty)"
-        echo "=== end ==="
-
         python3 <<'PYEOF'
         import re, os
 
-        # Match lines: "  [browser] › path/to/file.spec.ts:line:col › Suite › Test Name"
-        pattern = re.compile(r'\[.*?\]\s+›\s+(\S+\.spec\.ts):\d+:\d+\s+›\s+(.+)')
+        # Match "  api/auth.spec.ts:4:7 › Suite › Test Name" (no [browser] prefix)
+        pattern = re.compile(r'^\s+(\S+\.spec\.ts):\d+:\d+\s+›\s+(.+)')
         paths = []
         seen = set()
 
@@ -157,7 +153,8 @@ jobs:
                     continue
                 # testDir is tests/playwright/, prefix multi-repo-app/tests/playwright/ to match subset paths
                 filepath = os.path.normpath(os.path.join('multi-repo-app', 'tests', 'playwright', m.group(1)))
-                full_title = m.group(2).strip()
+                # Normalize › to " > " to match Playwright JSON results format
+                full_title = m.group(2).strip().replace(' › ', ' > ')
                 key = f'file={filepath}#testcase={full_title}'
                 if key not in seen:
                     seen.add(key)
@@ -288,10 +285,12 @@ jobs:
 
         def process_suites(suites, filepath=None):
             for suite in suites:
-                suite_file = suite.get('file', filepath)
-                if suite_file:
-                    # Prefix with multi-repo-app/ to match testPath format
-                    suite_file = os.path.normpath(os.path.join('multi-repo-app', suite_file))
+                raw_file = suite.get('file')
+                if raw_file is not None:
+                    # file attr is relative to multi-repo-app/; prefix once here
+                    suite_file = os.path.normpath(os.path.join('multi-repo-app', raw_file))
+                else:
+                    suite_file = filepath  # already prefixed; don't add multi-repo-app/ again
                 title = suite.get('title', '')
                 for spec in suite.get('specs', []):
                     spec_title = spec.get('title', '')
