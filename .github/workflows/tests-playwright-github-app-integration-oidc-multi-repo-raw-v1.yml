@@ -188,11 +188,17 @@ jobs:
         echo "Session: $(cat session.txt)"
         echo "Target flag: $TARGET_FLAG"
         echo "testpath.txt line count: $(wc -l < testpath.txt)"
-        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>&1
+        echo "First testpath: $(head -1 testpath.txt)"
+        echo "Java: $(java -version 2>&1 | head -1)"
+        echo "smart-tests version: $(smart-tests --version 2>&1)"
+        echo "--- Running subset raw (stdout+stderr split) ---"
+        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>smart-tests-subset.err
         EXIT_CODE=$?
         echo "Exit code: $EXIT_CODE"
-        echo "=== subset raw output ==="
+        echo "=== subset raw stdout ==="
         cat smart-tests-subset.txt
+        echo "=== subset raw stderr ==="
+        cat smart-tests-subset.err
         echo "========================="
         set -e
 
