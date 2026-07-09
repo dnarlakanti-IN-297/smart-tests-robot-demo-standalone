@@ -58,7 +58,7 @@ on:
 jobs:
   workshop-demo:
     name: "[${{ inputs.sdlc_stage }}] ${{ inputs.optimization_target_type }} ${{ inputs.optimization_target_value }} | obs=${{ inputs.observation_mode }}"
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
     env:
       SMART_TESTS_TOKEN: ${{ secrets.PTSv2_TOKEN }}
       OBSERVATION_FLAG: ${{ inputs.observation_mode == 'on' && '--observation' || ' ' }}
