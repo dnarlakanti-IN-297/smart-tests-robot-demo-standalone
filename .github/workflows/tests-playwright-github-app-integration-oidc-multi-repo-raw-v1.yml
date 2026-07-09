@@ -135,29 +135,38 @@ jobs:
       working-directory: multi-repo-app
       run: |
         echo "Collecting Playwright test titles from --list output..."
-        npx playwright test --list 2>/dev/null | python3 - <<'PYEOF'
-        import sys, re, os
+        # playwright --list writes to stderr; capture both streams to a file to avoid pipe+heredoc stdin conflict
+        npx playwright test --list > /tmp/playwright_list.txt 2>&1 || true
 
-        # Match: "  [browser] › tests/playwright/api/foo.spec.ts:line:col › Suite › Title"
-        pattern = re.compile(r'\[.*?\]\s+›\s+(tests/playwright/\S+\.spec\.ts):\d+:\d+\s+›\s+(.+)')
+        echo "=== playwright --list raw output (first 20 lines) ==="
+        head -20 /tmp/playwright_list.txt || echo "(empty)"
+        echo "=== end ==="
+
+        python3 <<'PYEOF'
+        import re, os
+
+        # Match lines: "  [browser] › path/to/file.spec.ts:line:col › Suite › Test Name"
+        pattern = re.compile(r'\[.*?\]\s+›\s+(\S+\.spec\.ts):\d+:\d+\s+›\s+(.+)')
         paths = []
         seen = set()
-        for line in sys.stdin:
-            m = pattern.search(line)
-            if not m:
-                continue
-            # Prefix with multi-repo-app/ so testPaths match subset paths from GITHUB_WORKSPACE
-            filepath = os.path.normpath(os.path.join('multi-repo-app', m.group(1)))
-            full_title = m.group(2).strip()
-            key = f'file={filepath}#testcase={full_title}'
-            if key not in seen:
-                seen.add(key)
-                paths.append(key)
+
+        with open('/tmp/playwright_list.txt') as f:
+            for line in f:
+                m = pattern.search(line)
+                if not m:
+                    continue
+                # testDir is tests/playwright/, prefix multi-repo-app/tests/playwright/ to match subset paths
+                filepath = os.path.normpath(os.path.join('multi-repo-app', 'tests', 'playwright', m.group(1)))
+                full_title = m.group(2).strip()
+                key = f'file={filepath}#testcase={full_title}'
+                if key not in seen:
+                    seen.add(key)
+                    paths.append(key)
 
         with open('../testpath.txt', 'w') as f:
             f.write('\n'.join(paths) + '\n')
 
-        print(f'Generated {len(paths)} testPath entries', file=sys.stderr)
+        print(f'Generated {len(paths)} testPath entries')
         PYEOF
 
         echo "Sample testPath entries:"
