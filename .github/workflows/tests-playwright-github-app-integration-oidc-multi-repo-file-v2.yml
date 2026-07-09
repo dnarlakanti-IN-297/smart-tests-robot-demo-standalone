@@ -1,17 +1,17 @@
-name: Multi-Repo Robot Tests (GitHub App - OIDC - File Profile - PTSv1)
+name: Multi-Repo Playwright Tests (GitHub App - OIDC - File Profile - PTSv2)
 
-# Multi-repo Scenario B — centralized test orchestration:
-# ✅ Checks out smart-tests-multi-repo-demo (book library app + tests)
+# Multi-repo Scenario B — centralized Playwright test orchestration:
+# ✅ Checks out smart-tests-multi-repo-demo (book library app + Playwright tests)
 # ✅ Records build with --no-commit-collection --commit for BOTH repos
 # ✅ Smart Tests correlates book library code changes to test failures
 # ✅ File profile (subset file / record tests file)
 # ✅ GitHub OIDC auth — no SMART_TESTS_TOKEN secret required
-# ⚠️  PTSv1 requires 3-5 observation runs before predictions appear
+# ⚠️  PTSv2 requires fewer observation runs than v1
 # 📚 Multi-repo docs: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/record-builds/record-builds-from-multiple-repositories
 
 on:
   push:
-    branches: [ main, 'patch-multi-repo-file' ]
+    branches: [ main, 'patch-playwright-multi-repo-file' ]
   workflow_dispatch:
     inputs:
       mode:
@@ -37,14 +37,14 @@ on:
         default: '75%'
         type: string
       multi_repo_ref:
-        description: 'Branch or SHA of smart-tests-multi-repo-demo to test against (default: main)'
+        description: 'Branch or SHA of smart-tests-multi-repo-demo to test against (default: patch-playwright-multi-repo-file)'
         required: false
-        default: 'main'
+        default: 'patch-playwright-multi-repo-file'
         type: string
 
 jobs:
-  multi-repo-file-ptsv1:
-    name: Multi-Repo Book Library Tests (File Profile - PTSv1)
+  multi-repo-playwright-file-ptsv2:
+    name: Multi-Repo Playwright Tests (File Profile - PTSv2)
     runs-on: ubuntu-latest
 
     permissions:
@@ -53,8 +53,8 @@ jobs:
 
     env:
       EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
-      SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v1 }}
-      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_V1_MULTI_REPO }}
+      SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v2 }}
+      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_V2_PLAYWRIGHT_FILE }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && format('--{0} {1}', inputs.optimization_target_type, inputs.optimization_target_value) || '--target 75%' }}
       SIMULATED_LATENCY_MS: 500
@@ -69,11 +69,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         repository: anuddeeph2/smart-tests-multi-repo-demo
-        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.multi_repo_ref || 'patch-multi-repo-file' }}
-        # PAT needed: github.token only grants access to the repo running this workflow,
-        # not to other private repos — even in the same account.
-        # Create a PAT with `repo` scope in anuddeeph2 and add it as secret MULTI_REPO_PAT
-        # in anuddeeph2/smart-tests-robot-demo.
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.multi_repo_ref || 'patch-playwright-multi-repo-file' }}
         token: ${{ secrets.MULTI_REPO_PAT }}
         path: multi-repo-app
         fetch-depth: 0
@@ -88,12 +84,22 @@ jobs:
         python-version: '3.13.1'
         cache: 'pip'
 
-    - name: Install dependencies
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r multi-repo-app/requirements.txt
-        pip install -r multi-repo-app/requirements-robot.txt
         pip3 install --no-cache-dir smart-tests-cli==2.11.2
+
+    - name: Install Playwright and dependencies
+      working-directory: multi-repo-app
+      run: |
+        npm install
+        npx playwright install chromium --with-deps
 
     - name: Verify Smart Tests connectivity
       run: smart-tests verify || true
@@ -111,7 +117,7 @@ jobs:
 
     - name: Record session with Smart Tests
       run: |
-        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite book-library-multi-repo-file-v1 > session.txt
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite book-library-playwright-multi-repo-file-v2 > session.txt
         cat session.txt
         echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
         echo "Target: $TARGET_FLAG"
@@ -125,29 +131,28 @@ jobs:
 
     - name: Create Smart Tests subset (file profile)
       shell: bash
-      working-directory: multi-repo-app
       run: |
         set +e
-        echo "Collecting Robot test files for file-profile subsetting..."
-        find tests/robot -name "*.robot" -not -path "*/resources/*" | \
-          smart-tests subset file --session @$GITHUB_WORKSPACE/session.txt $TARGET_FLAG > $GITHUB_WORKSPACE/smart-tests-subset.txt 2>/tmp/subset-status.txt
+        echo "Collecting Playwright spec files for file-profile subsetting..."
+        find multi-repo-app/tests/playwright -name "*.spec.ts" | \
+          smart-tests subset file --session @session.txt $TARGET_FLAG > smart-tests-subset.txt 2>/tmp/subset-status.txt
         EXIT_CODE=$?
         cat /tmp/subset-status.txt || true
         set -e
 
         if [ $EXIT_CODE -ne 0 ]; then
           echo "Smart Tests subset failed, falling back to ALL tests"
-          echo "ALL" > $GITHUB_WORKSPACE/smart-tests-subset.txt
+          echo "ALL" > smart-tests-subset.txt
         fi
 
         echo "Subset result:"
-        cat $GITHUB_WORKSPACE/smart-tests-subset.txt
-        echo "Files in subset: $(wc -l < $GITHUB_WORKSPACE/smart-tests-subset.txt)"
+        cat smart-tests-subset.txt
+        echo "Files in subset: $(wc -l < smart-tests-subset.txt)"
 
-    - name: Start book library app and run Robot tests
+    - name: Start book library app and run Playwright tests
       continue-on-error: true
-      working-directory: multi-repo-app
       run: |
+        cd multi-repo-app
         DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
         APP_PID=$!
 
@@ -159,88 +164,67 @@ jobs:
         }
         echo "Application is ready!"
 
-        mkdir -p $GITHUB_WORKSPACE/test-results
-        SUBSET_CONTENT=$(cat $GITHUB_WORKSPACE/smart-tests-subset.txt)
+        cd $GITHUB_WORKSPACE
+        mkdir -p test-results
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
 
-        if [ -s $GITHUB_WORKSPACE/smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
-          echo "Running Robot Framework with file subset:"
-          cat $GITHUB_WORKSPACE/smart-tests-subset.txt
-          robot \
-            --outputdir $GITHUB_WORKSPACE/test-results \
-            --output output.xml \
-            --log log.html \
-            --report report.html \
-            --xunit junit.xml \
-            --loglevel INFO \
-            $(cat $GITHUB_WORKSPACE/smart-tests-subset.txt) || true
+        if [ -s smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ]; then
+          echo "Running Playwright with file subset:"
+          cat smart-tests-subset.txt
+          cd multi-repo-app
+          npx playwright test $(cat $GITHUB_WORKSPACE/smart-tests-subset.txt | sed 's|multi-repo-app/||g' | tr '\n' ' ') || true
+          cd $GITHUB_WORKSPACE
         else
-          echo "Running all Robot Framework tests"
-          robot \
-            --outputdir $GITHUB_WORKSPACE/test-results \
-            --output output.xml \
-            --log log.html \
-            --report report.html \
-            --xunit junit.xml \
-            --loglevel INFO \
-            tests/robot/ || true
+          echo "Running all Playwright tests"
+          cd multi-repo-app
+          npx playwright test || true
+          cd $GITHUB_WORKSPACE
         fi
 
+        cp -r multi-repo-app/test-results/. test-results/ 2>/dev/null || true
         kill $APP_PID 2>/dev/null || true
       env:
+        BASE_URL: http://localhost:8000
         DATABASE_URL: sqlite:///./library.db
 
     - name: Rewrite junit.xml classnames to file paths (required for file profile)
       if: always()
       run: |
-        if [ ! -f test-results/junit.xml ] || [ ! -f test-results/output.xml ]; then
-          echo "Skipping: required files not found"
+        if [ ! -f test-results/playwright-junit.xml ]; then
+          echo "Skipping: playwright-junit.xml not found"
           exit 0
         fi
         python3 - <<'PYEOF'
         import xml.etree.ElementTree as ET
         import os
 
-        # output.xml has source= attributes with actual .robot file paths (absolute).
-        # Map by test NAME so the lookup works regardless of invocation style.
-        # Strip multi-repo-app/ prefix so classnames match subset paths (relative to multi-repo-app/).
-        output_root = ET.parse('test-results/output.xml').getroot()
-        test_to_file = {}
-
-        for suite in output_root.iter('suite'):
-            source = suite.get('source', '')
-            if source.endswith('.robot'):
-                rel_source = os.path.relpath(source)
-                prefix = os.path.join('multi-repo-app', '')
-                if rel_source.startswith(prefix):
-                    rel_source = rel_source[len(prefix):]
-                for test in suite.findall('test'):
-                    test_name = test.get('name', '')
-                    if test_name:
-                        test_to_file[test_name] = rel_source
-
-        print(f"Mapped {len(test_to_file)} test names to .robot files")
-        for k, v in list(test_to_file.items())[:3]:
-            print(f"  {k!r} -> {v!r}")
-
-        junit_tree = ET.parse('test-results/junit.xml')
-        junit_root = junit_tree.getroot()
+        tree = ET.parse('test-results/playwright-junit.xml')
+        root = tree.getroot()
         updated = 0
-        for tc in junit_root.iter('testcase'):
-            test_name = tc.get('name', '')
-            if test_name in test_to_file:
-                filepath = test_to_file[test_name]
-                tc.set('classname', filepath)
-                tc.set('file', filepath)
+
+        for testsuite in root.iter('testsuite'):
+            # Playwright JUnit uses 'name' (not 'file') for the spec path, relative to testDir
+            filepath = testsuite.get('file') or testsuite.get('name', '')
+            if not filepath:
+                continue
+            # testDir is tests/playwright/, so prefix multi-repo-app/tests/playwright/
+            rel_path = os.path.normpath(os.path.join('multi-repo-app', 'tests', 'playwright', filepath))
+            for tc in testsuite.findall('testcase'):
+                tc.set('classname', rel_path)
+                tc.set('file', rel_path)
                 updated += 1
 
-        print(f"Updated {updated} testcase classnames+file attrs to file paths")
-        junit_tree.write('test-results/junit.xml', xml_declaration=True, encoding='UTF-8')
+        print(f"Updated {updated} testcase classname+file attrs to multi-repo-app/... paths")
+        tree.write('test-results/junit.xml', xml_declaration=True, encoding='UTF-8')
         PYEOF
 
     - name: Record test results with Smart Tests (file profile)
       if: always()
       run: |
         if [ -f test-results/junit.xml ]; then
+          echo "=== junit.xml first 30 lines ==="
+          head -30 test-results/junit.xml
+          echo "=== end ==="
           echo "Recording test results to Smart Tests (file profile)..."
           smart-tests record tests file --session @session.txt test-results/junit.xml
           echo "Test results recorded successfully!"
@@ -254,22 +238,39 @@ jobs:
       if: always()
       uses: cloudbees-oss/smart-tests-results-upload-action@v1
 
-    - name: Upload Robot Framework results
+    - name: Upload Playwright results
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: robot-results-multi-repo-file-v1
+        name: playwright-results-multi-repo-file-v2
         path: test-results/
         retention-days: 30
 
     - name: Display test summary
       if: always()
       run: |
-        if [ -f test-results/output.xml ]; then
-          echo "=== Robot Framework Test Summary (Multi-Repo File Profile PTSv1) ==="
-          echo "smart-tests-robot-demo SHA: ${{ github.sha }}"
-          echo "smart-tests-multi-repo-demo SHA: ${{ steps.multi-repo-sha.outputs.sha }}"
-          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print(str(s.get("pass")) + " passed, " + str(s.get("fail")) + " failed") if s is not None else None' || echo "Could not parse test results"
+        echo "=== Playwright Test Summary (Multi-Repo File Profile PTSv2) ==="
+        echo "smart-tests-robot-demo SHA: ${{ github.sha }}"
+        echo "smart-tests-multi-repo-demo SHA: ${{ steps.multi-repo-sha.outputs.sha }}"
+        if [ -f test-results/playwright-results.json ]; then
+          python3 -c "
+        import json
+        with open('test-results/playwright-results.json') as f:
+            r = json.load(f)
+        suites = r.get('suites', [])
+        passed = failed = 0
+        def count(suites):
+            global passed, failed
+            for s in suites:
+                for spec in s.get('specs', []):
+                    for t in spec.get('tests', []):
+                        for result in t.get('results', []):
+                            if result.get('status') == 'passed': passed += 1
+                            else: failed += 1
+                count(s.get('suites', []))
+        count(suites)
+        print(f'{passed} passed, {failed} failed')
+          " || echo "Could not parse test results"
         else
           echo "No test results found"
         fi
