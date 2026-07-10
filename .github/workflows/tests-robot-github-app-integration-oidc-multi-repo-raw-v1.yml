@@ -1,8 +1,8 @@
-name: Multi-Repo Robot Tests (GitHub App - OIDC - Raw Profile - PTSv1)
+name: "[Multi-Repo Scenario 2] Robot Tests (GitHub App - OIDC - Raw Profile - PTSv1)"
 
-# Multi-repo Scenario B — centralized test orchestration:
+# Multi-repo centralized Robot orchestration; commit/build recording per CloudBees doc Scenario 2 (repos built/deployed separately, tested together):
 # ✅ Checks out smart-tests-multi-repo-demo (book library app + tests)
-# ✅ Records build with --no-commit-collection --commit for BOTH repos
+# ✅ Recording Scenario 2 (doc): record commit per repo + record build --no-commit-collection --commit
 # ✅ Smart Tests correlates book library code changes to test failures
 # ✅ Raw profile — test case level granularity (file=...#testcase=...)
 # ✅ GitHub OIDC auth — no SMART_TESTS_TOKEN secret required
