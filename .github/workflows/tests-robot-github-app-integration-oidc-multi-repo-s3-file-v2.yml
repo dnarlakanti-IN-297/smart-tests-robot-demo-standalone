@@ -34,9 +34,9 @@ on:
         default: '75%'
         type: string
       multi_repo_ref:
-        description: 'Branch or SHA of smart-tests-multi-repo-demo to test against (default: main)'
+        description: 'Branch or SHA of smart-tests-multi-repo-demo to test against (default: patch-multi-repo-file)'
         required: false
-        default: 'main'
+        default: 'patch-multi-repo-file'
         type: string
 
 jobs:
