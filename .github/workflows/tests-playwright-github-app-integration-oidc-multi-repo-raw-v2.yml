@@ -1,8 +1,8 @@
-name: Multi-Repo Playwright Tests (GitHub App - OIDC - Raw Profile - PTSv2)
+name: "[Multi-Repo Scenario 2] Playwright Tests (GitHub App - OIDC - Raw Profile - PTSv2)"
 
-# Multi-repo Scenario B — centralized Playwright test orchestration:
+# Multi-repo centralized Playwright orchestration; commit/build recording per CloudBees doc Scenario 2 (repos built/deployed separately, tested together):
 # ✅ Checks out smart-tests-multi-repo-demo (book library app + Playwright tests)
-# ✅ Records build with --no-commit-collection --commit for BOTH repos
+# ✅ Recording Scenario 2 (doc): record commit per repo + record build --no-commit-collection --commit
 # ✅ Raw profile (subset raw / record tests raw)
 # ✅ playwright test --list parsed to generate testPath list
 # ✅ --grep pattern built from subset to run only selected tests
