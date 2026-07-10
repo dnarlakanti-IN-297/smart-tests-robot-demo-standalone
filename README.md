@@ -151,10 +151,10 @@ This repository also acts as a **centralized orchestrator** for a multi-reposito
 
 | Framework | Profile | Branch | Workflows (v1 / v2) |
 |---|---|---|---|
-| Playwright | raw | `patch-playwright-multi-repo-raw` | `tests-playwright-github-app-integration-oidc-multi-repo-raw-v1.yml` / `-v2.yml` |
-| Playwright | file | `patch-playwright-multi-repo-file` | `tests-playwright-github-app-integration-oidc-multi-repo-file-v1.yml` / `-v2.yml` |
-| Robot | raw | `patch-multi-repo-raw` | `tests-robot-github-app-integration-oidc-multi-repo-raw-v1.yml` / `-v2.yml` |
-| Robot | file | `patch-multi-repo-file` | `tests-robot-github-app-integration-oidc-multi-repo-file-v1.yml` / `-v2.yml` |
+| Playwright | raw | `patch-playwright-multi-repo-raw` | `tests-playwright-github-app-integration-oidc-multi-repo-s2-raw-v1.yml` / `-v2.yml` |
+| Playwright | file | `patch-playwright-multi-repo-file` | `tests-playwright-github-app-integration-oidc-multi-repo-s2-file-v1.yml` / `-v2.yml` |
+| Robot | raw | `patch-multi-repo-raw` | `tests-robot-github-app-integration-oidc-multi-repo-s2-raw-v1.yml` / `-v2.yml` |
+| Robot | file | `patch-multi-repo-file` | `tests-robot-github-app-integration-oidc-multi-repo-s2-file-v1.yml` / `-v2.yml` |
 
 The core recording pattern (per workflow):
 

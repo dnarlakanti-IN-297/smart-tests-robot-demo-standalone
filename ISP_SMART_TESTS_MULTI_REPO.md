@@ -121,14 +121,14 @@ All eight workflows live in `smart-tests-robot-demo`, run on the self-hosted ARC
 
 | Framework | Profile | PTS | Workflow file | Branch |
 |---|---|---|---|---|
-| Playwright | raw | v1 | `tests-playwright-github-app-integration-oidc-multi-repo-raw-v1.yml` | `patch-playwright-multi-repo-raw` |
-| Playwright | raw | v2 | `tests-playwright-github-app-integration-oidc-multi-repo-raw-v2.yml` | `patch-playwright-multi-repo-raw` |
-| Playwright | file | v1 | `tests-playwright-github-app-integration-oidc-multi-repo-file-v1.yml` | `patch-playwright-multi-repo-file` |
-| Playwright | file | v2 | `tests-playwright-github-app-integration-oidc-multi-repo-file-v2.yml` | `patch-playwright-multi-repo-file` |
-| Robot | raw | v1 | `tests-robot-github-app-integration-oidc-multi-repo-raw-v1.yml` | `patch-multi-repo-raw` |
-| Robot | raw | v2 | `tests-robot-github-app-integration-oidc-multi-repo-raw-v2.yml` | `patch-multi-repo-raw` |
-| Robot | file | v1 | `tests-robot-github-app-integration-oidc-multi-repo-file-v1.yml` | `patch-multi-repo-file` |
-| Robot | file | v2 | `tests-robot-github-app-integration-oidc-multi-repo-file-v2.yml` | `patch-multi-repo-file` |
+| Playwright | raw | v1 | `tests-playwright-github-app-integration-oidc-multi-repo-s2-raw-v1.yml` | `patch-playwright-multi-repo-raw` |
+| Playwright | raw | v2 | `tests-playwright-github-app-integration-oidc-multi-repo-s2-raw-v2.yml` | `patch-playwright-multi-repo-raw` |
+| Playwright | file | v1 | `tests-playwright-github-app-integration-oidc-multi-repo-s2-file-v1.yml` | `patch-playwright-multi-repo-file` |
+| Playwright | file | v2 | `tests-playwright-github-app-integration-oidc-multi-repo-s2-file-v2.yml` | `patch-playwright-multi-repo-file` |
+| Robot | raw | v1 | `tests-robot-github-app-integration-oidc-multi-repo-s2-raw-v1.yml` | `patch-multi-repo-raw` |
+| Robot | raw | v2 | `tests-robot-github-app-integration-oidc-multi-repo-s2-raw-v2.yml` | `patch-multi-repo-raw` |
+| Robot | file | v1 | `tests-robot-github-app-integration-oidc-multi-repo-s2-file-v1.yml` | `patch-multi-repo-file` |
+| Robot | file | v2 | `tests-robot-github-app-integration-oidc-multi-repo-s2-file-v2.yml` | `patch-multi-repo-file` |
 
 Their Actions display names are prefixed `[Multi-Repo Scenario 2]` to mark that they implement the recording Scenario 2 pattern (distinct from the demo's own orchestration labels).
 
