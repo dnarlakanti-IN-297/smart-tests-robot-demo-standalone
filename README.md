@@ -8,6 +8,7 @@
 Demo repository for **CloudBees Smart Tests** predictive test selection with Robot Framework. Uses `smart-tests-cli==2.11.2` for both PTSv1 (ML-based) and PTSv2 (AI-based) — the CLI is identical for both versions; the token determines which prediction engine runs.
 
 **Adoption Journey Guide:** [ISP_SMART_TESTS_ROBOT.md](./ISP_SMART_TESTS_ROBOT.md)
+**Multi-Repo Guide:** [ISP_SMART_TESTS_MULTI_REPO.md](./ISP_SMART_TESTS_MULTI_REPO.md)
 
 ---
 
@@ -140,6 +141,34 @@ smart-tests record tests robot --session @session.txt test-results/output.xml
 
 ---
 
+## Multi-Repo Testing (Recording Scenario 2)
+
+This repository also acts as a **centralized orchestrator** for a multi-repository Smart Tests demo. The tests exercise an application that lives in a *separate* repository — [smart-tests-multi-repo-demo](https://github.com/cloudbees-ps/smart-tests-multi-repo-demo), a Book Library FastAPI app. A single workflow checks out both repositories, records commits for **both**, and records **one build tagged with both repositories' commit SHAs**. This is the CloudBees "record builds from multiple repositories" **Scenario 2** pattern (repositories built/deployed separately, then tested together).
+
+**Use case:** teams whose application code and test assets live in different Git repositories, where a change in either repo should map to the right subset of tests and the build must be correlated to the versions of both repos.
+
+**Multi-repo branches and workflows** (all run on the self-hosted ARC runner; Actions display names are prefixed `[Multi-Repo Scenario 2]`):
+
+| Framework | Profile | Branch | Workflows (v1 / v2) |
+|---|---|---|---|
+| Playwright | raw | `patch-playwright-multi-repo-raw` | `tests-playwright-github-app-integration-oidc-multi-repo-raw-v1.yml` / `-v2.yml` |
+| Playwright | file | `patch-playwright-multi-repo-file` | `tests-playwright-github-app-integration-oidc-multi-repo-file-v1.yml` / `-v2.yml` |
+| Robot | raw | `patch-multi-repo-raw` | `tests-robot-github-app-integration-oidc-multi-repo-raw-v1.yml` / `-v2.yml` |
+| Robot | file | `patch-multi-repo-file` | `tests-robot-github-app-integration-oidc-multi-repo-file-v1.yml` / `-v2.yml` |
+
+The core recording pattern (per workflow):
+
+```
+smart-tests record commit --name <orchestrator> --source .              # this repo's commits
+smart-tests record commit --name <app-repo> --source ./multi-repo-app   # app repo's commits
+smart-tests record build --no-commit-collection \
+  --commit <orchestrator>=<sha> --commit <app-repo>=<sha>               # one build, both repos tagged
+```
+
+Full walkthrough, prerequisites, and profile mechanics: [ISP_SMART_TESTS_MULTI_REPO.md](./ISP_SMART_TESTS_MULTI_REPO.md). Scenario 1 (single `record build --source`) and Scenario 3 (incremental / cached artifacts) are planned.
+
+---
+
 ## Expected Results (Reference)
 
 | Metric | Value |
@@ -155,4 +184,6 @@ smart-tests record tests robot --session @session.txt test-results/output.xml
 ## Additional Resources
 
 - Adoption Journey Guide: [ISP_SMART_TESTS_ROBOT.md](./ISP_SMART_TESTS_ROBOT.md)
+- Multi-Repo Guide: [ISP_SMART_TESTS_MULTI_REPO.md](./ISP_SMART_TESTS_MULTI_REPO.md)
+- Application-under-test repository: https://github.com/cloudbees-ps/smart-tests-multi-repo-demo
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
