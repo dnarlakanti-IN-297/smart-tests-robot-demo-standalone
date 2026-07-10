@@ -1,8 +1,8 @@
-name: Multi-Repo Playwright Tests (GitHub App - OIDC - Raw Profile - PTSv1)
+name: "[Multi-Repo Scenario 2] Playwright Tests (GitHub App - OIDC - Raw Profile - PTSv1)"
 
-# Multi-repo Scenario B — centralized Playwright test orchestration:
+# Multi-repo centralized Playwright orchestration; commit/build recording per CloudBees doc Scenario 2 (repos built/deployed separately, tested together):
 # ✅ Checks out smart-tests-multi-repo-demo (book library app + Playwright tests)
-# ✅ Records build with --no-commit-collection --commit for BOTH repos
+# ✅ Recording Scenario 2 (doc): record commit per repo + record build --no-commit-collection --commit
 # ✅ Raw profile (subset raw / record tests raw)
 # ✅ playwright test --list parsed to generate testPath list
 # ✅ --grep pattern built from subset to run only selected tests
@@ -90,6 +90,12 @@ jobs:
       with:
         node-version: '20'
 
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
@@ -108,6 +114,7 @@ jobs:
     - name: Record commits with Smart Tests
       run: |
         smart-tests record commit --name ${{ github.repository }} --source ${{ github.workspace }} --max-days 90
+        smart-tests record commit --name anuddeeph2/smart-tests-multi-repo-demo --source ${{ github.workspace }}/multi-repo-app --max-days 90
 
     - name: Record build with Smart Tests (multi-repo)
       run: |
@@ -157,7 +164,7 @@ jobs:
                 # Normalize › to " > " to match Playwright JSON results format
                 full_title = m.group(2).strip().replace(' › ', ' > ')
                 # Encode URL special chars that break testPath parsing (? = query separator)
-                full_title = full_title.replace('?', '%3F').replace('&', '%26')
+                full_title = full_title.replace('%', '%25').replace('#', '%23').replace('=', '%3D').replace('?', '%3F').replace('&', '%26')
                 key = f'file={filepath}#testcase={full_title}'
                 if key not in seen:
                     seen.add(key)
@@ -179,25 +186,24 @@ jobs:
       run: |
         set +e
         echo "Requesting raw subset from Smart Tests..."
-        echo "Session: $(cat session.txt)"
         echo "Target flag: $TARGET_FLAG"
-        echo "testpath.txt line count: $(wc -l < testpath.txt)"
-        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>&1
+        echo "Input testpaths: $(wc -l < testpath.txt)"
+        # stdout = subset result (clean); stderr = CLI logs (kept separate so logs never pollute the result)
+        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2> subset-stderr.log
         EXIT_CODE=$?
-        echo "Exit code: $EXIT_CODE"
-        echo "=== subset raw output ==="
-        cat smart-tests-subset.txt
-        echo "========================="
         set -e
-
-        if [ $EXIT_CODE -ne 0 ]; then
-          echo "Smart Tests subset failed, falling back to ALL tests"
+        echo "Exit code: $EXIT_CODE"
+        echo "--- subset stderr (CLI logs) ---"
+        cat subset-stderr.log || true
+        echo "--- subset stdout (result) ---"
+        cat smart-tests-subset.txt || true
+        echo "--------------------------------"
+        # Exit != 0 (observation mode / model still training) or empty result => run ALL tests
+        if [ $EXIT_CODE -ne 0 ] || [ ! -s smart-tests-subset.txt ]; then
+          echo "No usable subset returned; falling back to ALL tests"
           echo "ALL" > smart-tests-subset.txt
         fi
-
-        echo "Subset result:"
-        cat smart-tests-subset.txt
-        echo "Tests in subset: $(wc -l < smart-tests-subset.txt)"
+        echo "Subset lines: $(wc -l < smart-tests-subset.txt)"
 
     - name: Convert raw subset to Playwright --grep pattern
       shell: bash
@@ -212,32 +218,47 @@ jobs:
         python3 - <<'PYEOF'
         import os, re
 
+        def dec(s):
+            # reverse the testpath percent-encoding so Playwright --grep matches the real titles
+            return (s.replace('%3D', '=').replace('%3F', '?').replace('%26', '&')
+                     .replace('%23', '#').replace('%25', '%'))
+
+        input_count = 0
+        if os.path.exists('testpath.txt'):
+            with open('testpath.txt') as f:
+                input_count = sum(1 for l in f if l.strip().startswith('file='))
+
         files = set()
         test_titles = []
         with open('smart-tests-subset.txt') as f:
             for line in f:
                 line = line.strip()
-                if not line:
-                    continue
+                if not line.startswith('file='):
+                    continue  # skip stray CLI messages / blank lines
                 if '#testcase=' in line:
                     file_part, tc_part = line.split('#testcase=', 1)
-                    filepath = file_part.replace('file=', '', 1)
-                    files.add(filepath)
-                    test_titles.append(tc_part)
+                    files.add(file_part.replace('file=', '', 1))
+                    test_titles.append(dec(tc_part))
                 else:
-                    filepath = line.replace('file=', '', 1)
-                    files.add(filepath.replace('multi-repo-app/', '', 1))
+                    files.add(line.replace('file=', '', 1))
+
+        subset_count = len(test_titles) if test_titles else len(files)
+        # A model still in training returns the full set: just run everything (skip fragile grep)
+        run_all = subset_count == 0 or (input_count and subset_count >= input_count)
 
         with open(os.environ['GITHUB_ENV'], 'a') as env_f:
-            if test_titles:
-                escaped = [re.escape(t) for t in test_titles]
-                env_f.write(f'PLAYWRIGHT_GREP={"| ".join(escaped)}\n')
-            else:
+            if run_all:
                 env_f.write('PLAYWRIGHT_GREP=\n')
-            env_f.write('PLAYWRIGHT_FILES=' + ' '.join(sorted(files)) + '\n')
+                env_f.write('PLAYWRIGHT_FILES=\n')
+            else:
+                if test_titles:
+                    env_f.write('PLAYWRIGHT_GREP=' + '|'.join(re.escape(t) for t in test_titles) + '\n')
+                else:
+                    env_f.write('PLAYWRIGHT_GREP=\n')
+                env_f.write('PLAYWRIGHT_FILES=' + ' '.join(sorted(files)) + '\n')
 
+        print(f'Input testpaths: {input_count}, subset: {subset_count}, run_all: {run_all}')
         print(f'Files: {sorted(files)}')
-        print(f'Grep titles count: {len(test_titles)}')
         PYEOF
 
     - name: Start book library app and run Playwright tests
@@ -296,8 +317,11 @@ jobs:
             for suite in suites:
                 raw_file = suite.get('file')
                 if raw_file is not None:
-                    # file attr is relative to multi-repo-app/ (playwright testDir); use as-is
-                    suite_file = os.path.normpath(raw_file)
+                    # normalize to the same 'tests/playwright/<spec>' prefix the subset request uses,
+                    # so recorded results correlate with the subset testPaths
+                    sf = os.path.normpath(raw_file)
+                    _m = 'tests/playwright/'
+                    suite_file = (_m + sf.split(_m, 1)[1]) if _m in sf else (_m + sf)
                 else:
                     suite_file = filepath  # inherited from parent suite
                 title = suite.get('title', '')
@@ -305,7 +329,7 @@ jobs:
                     spec_title = spec.get('title', '')
                     full_title = f'{title} > {spec_title}' if title else spec_title
                     # Encode URL special chars that break testPath parsing (? = query separator)
-                    full_title = full_title.replace('?', '%3F').replace('&', '%26')
+                    full_title = full_title.replace('%', '%25').replace('#', '%23').replace('=', '%3D').replace('?', '%3F').replace('&', '%26')
                     for test in spec.get('tests', []):
                         for result in test.get('results', []):
                             status = result.get('status', 'failed')
