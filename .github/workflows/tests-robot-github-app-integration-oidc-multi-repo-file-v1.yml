@@ -1,8 +1,8 @@
-name: Multi-Repo Robot Tests (GitHub App - OIDC - File Profile - PTSv1)
+name: "[Multi-Repo Scenario 2] Robot Tests (GitHub App - OIDC - File Profile - PTSv1)"
 
-# Multi-repo Scenario B — centralized test orchestration:
+# Multi-repo centralized Robot orchestration; commit/build recording per CloudBees doc Scenario 2 (repos built/deployed separately, tested together):
 # ✅ Checks out smart-tests-multi-repo-demo (book library app + tests)
-# ✅ Records build with --no-commit-collection --commit for BOTH repos
+# ✅ Recording Scenario 2 (doc): record commit per repo + record build --no-commit-collection --commit
 # ✅ Smart Tests correlates book library code changes to test failures
 # ✅ File profile (subset file / record tests file)
 # ✅ GitHub OIDC auth — no SMART_TESTS_TOKEN secret required
@@ -45,7 +45,7 @@ on:
 jobs:
   multi-repo-file-ptsv1:
     name: Multi-Repo Book Library Tests (File Profile - PTSv1)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
 
     permissions:
       id-token: write
@@ -88,6 +88,12 @@ jobs:
         python-version: '3.13.1'
         cache: 'pip'
 
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
@@ -101,6 +107,7 @@ jobs:
     - name: Record commits with Smart Tests
       run: |
         smart-tests record commit --name ${{ github.repository }} --source ${{ github.workspace }} --max-days 90
+        smart-tests record commit --name anuddeeph2/smart-tests-multi-repo-demo --source ${{ github.workspace }}/multi-repo-app --max-days 90
 
     - name: Record build with Smart Tests (multi-repo)
       run: |

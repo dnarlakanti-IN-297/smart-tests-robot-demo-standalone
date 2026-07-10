@@ -53,7 +53,7 @@ on:
 jobs:
   robot-ptsv1-tests:
     name: Robot Framework API Tests (GitHub App - OIDC - PTSv1)
-    runs-on: ubuntu-latest
+    runs-on: runner-robot-demo
 
     # Required for GitHub OIDC token issuance — do not remove
     permissions:

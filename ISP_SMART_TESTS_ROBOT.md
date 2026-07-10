@@ -1117,6 +1117,8 @@ Projected Savings:
 - Quick branch (40 tests, 0ms latency, both PTSv1 and PTSv2): `patch-robot-demo-quick` — workflows: `tests-robot-smarttests-pts-v1-quick.yml` / `tests-robot-smarttests-pts-v2-quick.yml`
 - Baseline workflow (no Smart Tests): `tests-robot-no-smarttests.yml`
 - GitHub OIDC auth workflows: `tests-robot-github-app-integration-oidc-v2.yml`, `tests-robot-github-app-integration-oidc-v1.yml`, `tests-robot-github-app-integration-oidc-v2-quick.yml`, `tests-robot-github-app-integration-oidc-v1-quick.yml`
+- File profile branch: `patch-robot-demo-file-profile` — workflows: `tests-robot-github-app-integration-oidc-file-profile-v1.yml` / `tests-robot-github-app-integration-oidc-file-profile-v2.yml`
+- Raw profile branch: `patch-robot-demo-raw-profile` — workflows: `tests-robot-github-app-integration-oidc-raw-profile-v1.yml` / `tests-robot-github-app-integration-oidc-raw-profile-v2.yml`
 - CLI command reference and workflow examples: [SMART_TESTS_CLI_REFERENCE.md](./SMART_TESTS_CLI_REFERENCE.md)
 - CloudBees Smart Tests documentation: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/
 - GitHub OIDC migration guide: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/set-up-smart-tests/migration-to-github-oidc-auth
@@ -1204,3 +1206,135 @@ All `smart-tests record` and `smart-tests subset` CLI steps are identical to the
 - **OIDC enabled for your workspace:** Contact the CloudBees Smart Tests team to enable OIDC tokenless auth for your org/workspace UUIDs. This is a backend enablement — the workflow will return `401 Unauthorized` until it is activated.
 - **Repository variables set:** Add `SMART_TESTS_ORGANIZATION_v1`, `SMART_TESTS_WORKSPACE_v1`, `SMART_TESTS_ORGANIZATION_v2`, `SMART_TESTS_WORKSPACE_v2` as repository variables with UUID values
 - **No `SMART_TESTS_TOKEN` secret needed:** Remove it or leave it unused — the OIDC token replaces it entirely
+
+---
+
+## Subset Profiles: robot, file, and raw
+
+Everything above uses the **robot** subset profile (`smart-tests subset robot` / `smart-tests record tests robot`) — the native Robot Framework integration. Smart Tests supports two additional profiles that trade granularity for control: **file** and **raw**. All three use the same prediction engine (PTSv1 ML or PTSv2 AI) and the same `smart-tests-cli`. They differ only in the *unit of selection* and the CLI commands used to request the subset and record results.
+
+These profile demos run on GitHub OIDC auth (same mechanism as the section above) and pin `smart-tests-cli==2.12.4`.
+
+### Choosing a profile
+
+| | robot profile | file profile | raw profile |
+|---|---|---|---|
+| **Unit of selection** | Robot suite + test (`-s` / `-t`) | `.robot` file | Individual test case (`file=...#testcase=...`) |
+| **Subset command** | `subset robot` | `subset file` | `subset raw` |
+| **Record command** | `record tests robot` | `record tests file` | `record tests raw` |
+| **Dry-run required?** | Yes (`robot --dryrun` → `output.xml`) | No — files are the unit | Yes (`robot --dryrun` → `output.xml` → testPath list) |
+| **Subset input** | dry-run `output.xml` | list of `.robot` paths on stdin | `testpath.txt` (one `file=...#testcase=...` per line) |
+| **Record input** | `output.xml` | `junit.xml` (classnames rewritten to file paths) | `raw-results.json` (explicit testPath + status + duration) |
+| **Granularity** | test case | file | test case |
+| **Best when** | You want the simplest native integration | You want coarse, low-overhead selection and files map cleanly to features | You need full control of the test identifier, or you integrate a runner with no native profile |
+| **Demo branch** | `patch-robot-demo-ptsv1` / `patch-robot-demo-ptsv2` | `patch-robot-demo-file-profile` | `patch-robot-demo-raw-profile` |
+| **Workflow (v1 / v2)** | `...-oidc-v1.yml` / `...-oidc-v2.yml` | `...-oidc-file-profile-v1.yml` / `...-oidc-file-profile-v2.yml` | `...-oidc-raw-profile-v1.yml` / `...-oidc-raw-profile-v2.yml` |
+| **Workspace variable** | `SMART_TESTS_WORKSPACE_v1` / `_v2` | `SMART_TESTS_WORKSPACE_v1` / `_v2` | `SMART_TESTS_WORKSPACE_v1_raw` / `_v2_raw` |
+
+> **Important — one workspace, one profile type:** Smart Tests locks a workspace to the first profile type it receives. Sending `robot`, `file`, and `raw` results to the *same* workspace produces `422` errors. The raw-profile workflows use dedicated workspace variables (`SMART_TESTS_WORKSPACE_v1_raw` / `_v2_raw`) for exactly this reason. Give each profile type you intend to run its own workspace — do not point a profile at a workspace already locked to a different profile.
+
+> **Note — running the profile workflows:** Both profiles expose the same `workflow_dispatch` inputs as the other OIDC workflows: `mode` (observation / production), `optimization_target_type` (target / confidence / time), and `optimization_target_value` (e.g. `75%`, `10m`). PTSv1 still needs 3-5 observation runs before predictions appear; PTSv2 predicts from the first run. Select the matching branch (`patch-robot-demo-file-profile` or `patch-robot-demo-raw-profile`) when triggering manually.
+
+---
+
+### File Profile
+
+**Branch:** `patch-robot-demo-file-profile`
+**Workflows:** `tests-robot-github-app-integration-oidc-file-profile-v1.yml` (PTSv1) / `tests-robot-github-app-integration-oidc-file-profile-v2.yml` (PTSv2)
+
+The file profile selects whole `.robot` files. It is the lowest-overhead profile — no dry-run is needed because the files themselves are the unit of selection.
+
+**1. Request the subset** — pipe the list of test files straight into `subset file`:
+
+```bash
+find tests/robot -name "*.robot" -not -path "*/resources/*" | \
+  smart-tests subset file --session @session.txt $TARGET_FLAG \
+  > smart-tests-subset.txt 2>/tmp/subset-status.txt
+```
+
+The output is a list of `.robot` paths (or `ALL` on the fallback path).
+
+**2. Run the subset** — pass the file list directly to Robot:
+
+```bash
+robot --outputdir test-results --output output.xml \
+  --xunit junit.xml --loglevel INFO \
+  $(cat smart-tests-subset.txt)
+```
+
+**3. Rewrite junit classnames, then record** — `record tests file` maps results to files by the junit `classname` / `file` attributes, but Robot writes keyword-based classnames there, which never match the `.robot` source paths. The workflow rewrites each `<testcase>` `classname` / `file` attribute to its `.robot` source path (looked up from `output.xml` by test name) before recording:
+
+```bash
+smart-tests record tests file --session @session.txt test-results/junit.xml
+```
+
+> **Warning — the junit rewrite is required for the file profile:** Without it, recorded results carry keyword-hierarchy classnames that do not correspond to the `.robot` files the subset selected, so results never correlate with the subset. The rewrite step maps test name to source file via `output.xml` and patches `junit.xml` so recorded files line up with the selected files.
+
+---
+
+### Raw Profile
+
+**Branch:** `patch-robot-demo-raw-profile`
+**Workflows:** `tests-robot-github-app-integration-oidc-raw-profile-v1.yml` (PTSv1) / `tests-robot-github-app-integration-oidc-raw-profile-v2.yml` (PTSv2)
+
+The raw profile is the most granular and the most portable — the test identifier is an explicit testPath string, `file=<path>#testcase=<name>`. Use it when you need full control of the identifier, or when integrating a test runner that has no native Smart Tests profile.
+
+**1. Generate the testPath list** — dry-run, then parse `output.xml` into `testpath.txt` (one path per line):
+
+```bash
+robot --dryrun --outputdir /tmp/robot-dryrun tests/robot/
+# inline Python parses /tmp/robot-dryrun/output.xml into lines like:
+#   file=tests/robot/api/auth_tests.robot#testcase=Login With Valid Credentials
+```
+
+**2. Request the subset:**
+
+```bash
+smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt \
+  > smart-tests-subset.txt 2>/tmp/subset-status.txt
+```
+
+**3. Run the subset** — the raw subset (testPath lines) is converted back into Robot `--suite` / `--test` arguments by inline Python, then run with `eval` (the arguments are single-quoted, so `eval` is required — same reason as the robot profile):
+
+```bash
+eval robot --outputdir test-results --output output.xml \
+  --xunit junit.xml --loglevel INFO \
+  $ROBOT_ARGS tests/robot/
+```
+
+**4. Record results** — raw requires an explicit JSON payload so the recorded testPath matches the subset identifier format exactly:
+
+```json
+{"testCases": [
+  {"testPath": "file=tests/robot/api/auth_tests.robot#testcase=Login With Valid Credentials",
+   "status": "TEST_PASSED", "duration": 1.23}
+]}
+```
+
+```bash
+smart-tests record tests raw --session @session.txt test-results/raw-results.json
+```
+
+> **Warning — raw record format must match subset format:** `record tests raw` fed junit/xunit produces `class=<classname>#testcase=<name>` identifiers, which never match the `file=<path>#testcase=<name>` identifiers used by `subset raw`. The workflow builds `raw-results.json` with explicit `file=...` testPaths (from `output.xml`) so recorded results correlate with the subset. The identifier on both sides must be byte-for-byte the same, including any URL-encoding of reserved characters in the test name.
+
+---
+
+### Knowledge Check: Subset Profiles
+
+1. **Which profile requires no `robot --dryrun` step?**
+   - [ ] robot profile
+   - [x] file profile — files are the unit of selection, so the file list is enough
+   - [ ] raw profile
+   - [ ] All three require a dry-run
+
+2. **Why does the raw profile record from a generated `raw-results.json` instead of junit/xunit?**
+   - [ ] JSON uploads faster
+   - [x] So recorded testPaths use the same `file=...#testcase=...` identifiers as `subset raw` — junit records `class=...#testcase=...`, which never matches
+   - [ ] Robot cannot produce junit output
+   - [ ] It is optional; junit works fine
+
+3. **You run the robot profile and the raw profile against the same workspace and get `422` errors. Why?**
+   - [ ] The token expired
+   - [ ] The subset target is too low
+   - [x] A workspace locks to the first profile type it receives; each profile type needs its own workspace
+   - [ ] Observation mode is not supported for raw
