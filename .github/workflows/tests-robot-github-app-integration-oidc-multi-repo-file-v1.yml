@@ -101,6 +101,7 @@ jobs:
     - name: Record commits with Smart Tests
       run: |
         smart-tests record commit --name ${{ github.repository }} --source ${{ github.workspace }} --max-days 90
+        smart-tests record commit --name anuddeeph2/smart-tests-multi-repo-demo --source ${{ github.workspace }}/multi-repo-app --max-days 90
 
     - name: Record build with Smart Tests (multi-repo)
       run: |
