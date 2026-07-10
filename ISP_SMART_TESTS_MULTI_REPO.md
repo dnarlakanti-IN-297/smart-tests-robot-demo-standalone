@@ -68,7 +68,7 @@ The CloudBees documentation describes three scenarios. The key idea underneath a
 
 | Doc scenario | Approach | This demo |
 |---|---|---|
-| **1. Combined in one build, then tested** | One call: `record build --source repoA=path --source repoB=path` collects commits and records the build together | Planned (see below) |
+| **1. Combined in one build, then tested** | One call: `record build --source repoA=path --source repoB=path` collects commits and records the build together | **Implemented** |
 | **2. Built/deployed separately, then tested together (microservices)** | `record commit` per repo, then `record build --no-commit-collection --commit repo=sha ...` | **Implemented** |
 | **3. Incremental build over multiple repos** | `record commit` for changed repos only, then `record build --no-commit-collection --commit ...` for all repos (unchanged ones tagged by SHA from cache) | **Implemented** |
 
@@ -97,17 +97,34 @@ smart-tests record build --build ${{ github.run_id }} \
 
 > **Note — why record commits for both here:** With `--no-commit-collection`, `record build` sends no commits. If only the orchestrator's commits are recorded, the app repo's commit tag resolves to nothing (unless the app repo recorded that SHA in a separate pipeline). Because this workflow checks out both repos and tests immediately, it records both repos' commits in the same run — no cross-repo ordering dependency.
 
-### Scenario 1 (planned)
+### Scenario 1 (implemented)
 
-Because these workflows already check out both repositories together, they are also a natural fit for Scenario 1, which collapses the two steps into a single call:
+Because these workflows already check out both repositories together, Scenario 1 ("combined in one build, then tested") is the most natural fit: it collapses the two S2/S3 steps into a single call.
 
 ```bash
+# NO separate "Record commits" step. record build --source collects commits
+# from BOTH local checkouts AND records the build in one call:
 smart-tests record build --build ${{ github.run_id }} \
   --source ${{ github.repository }}=${{ github.workspace }} \
   --source anuddeeph2/smart-tests-multi-repo-demo=${{ github.workspace }}/multi-repo-app
 ```
 
-No separate `record commit`, no `--no-commit-collection`, no `--commit` tags — `record build --source` collects the commits and records the build in one shot. This variant is planned as a separate demo.
+No separate `record commit`, no `--no-commit-collection`, no `--commit` tags — `record build --source` collects the commits and records the build in one shot. Both repos are recorded fresh each run, so (unlike Scenario 3) there is **no cache dependency**.
+
+**The 8 Scenario 1 workflows** mirror the S2/S3 set (Playwright + Robot, raw + file, PTSv1 + PTSv2) with:
+- filenames `...-multi-repo-s1-...`, display names `[Multi-Repo Scenario 1]`
+- `workflow_dispatch`-only (no `push:` trigger), so they don't collide with S2/S3 on the shared branches
+- reuse the S2/S3 workspace variables (same profile → no `422`)
+- distinct `--test-suite` names (`...-multi-repo-s1-...`) so Scenario 1 sessions stay identifiable
+
+| Framework | Profile | Workflow (v1 / v2) |
+|---|---|---|
+| Playwright | raw | `tests-playwright-github-app-integration-oidc-multi-repo-s1-raw-v1.yml` / `-v2.yml` |
+| Playwright | file | `tests-playwright-github-app-integration-oidc-multi-repo-s1-file-v1.yml` / `-v2.yml` |
+| Robot | raw | `tests-robot-github-app-integration-oidc-multi-repo-s1-raw-v1.yml` / `-v2.yml` |
+| Robot | file | `tests-robot-github-app-integration-oidc-multi-repo-s1-file-v1.yml` / `-v2.yml` |
+
+> **Note — `--max-days` does not apply here:** `record build --source` uses its own default commit-collection depth; the `--max-days 90` used by the S2/S3 `record commit` step has no equivalent in the single-call form.
 
 ### Scenario 3 (implemented)
 
