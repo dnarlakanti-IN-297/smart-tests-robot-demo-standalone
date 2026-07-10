@@ -1,0 +1,354 @@
+name: "[Multi-Repo Scenario 3] Robot Tests (GitHub App - OIDC - Raw Profile - PTSv1)"
+
+# Multi-repo centralized Robot orchestration; commit/build recording per CloudBees doc Scenario 3 (incremental build — only the changed repo (app) is re-recorded; orchestrator tagged from cache):
+# ✅ Checks out smart-tests-multi-repo-demo (book library app + tests)
+# ✅ Recording Scenario 3 (doc): record commit for the changed repo only (app) + record build --no-commit-collection --commit
+# ✅ Smart Tests correlates book library code changes to test failures
+# ✅ Raw profile — test case level granularity (file=...#testcase=...)
+# ✅ GitHub OIDC auth — no SMART_TESTS_TOKEN secret required
+# ⚠️  PTSv1 requires 3-5 observation runs before predictions appear
+# 📚 Multi-repo docs: https://docs.cloudbees.com/docs/cloudbees-smart-tests/latest/send-data-to-smart-tests/record-builds/record-builds-from-multiple-repositories
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Smart Tests mode'
+        required: true
+        type: choice
+        default: 'observation'
+        options:
+          - observation
+          - production
+      optimization_target_type:
+        description: 'Optimization target type: target (% of expected duration), confidence (Y-axis probability), time (X-axis fixed budget)'
+        required: true
+        type: choice
+        default: 'target'
+        options:
+          - target
+          - confidence
+          - time
+      optimization_target_value:
+        description: 'Target value — % for target/confidence (e.g. 75%), or duration for time (e.g. 10m)'
+        required: true
+        default: '75%'
+        type: string
+      multi_repo_ref:
+        description: 'Branch or SHA of smart-tests-multi-repo-demo to test against (default: main)'
+        required: false
+        default: 'main'
+        type: string
+
+jobs:
+  multi-repo-s3-raw-ptsv1:
+    name: Multi-Repo S3 Book Library Tests (Raw Profile - PTSv1)
+    runs-on: runner-robot-demo
+
+    permissions:
+      id-token: write
+      contents: read
+
+    env:
+      EXPERIMENTAL_GITHUB_OIDC_TOKEN_AUTH: 1
+      SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v1 }}
+      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_V1_RAW_MULTI_REPO }}
+      OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
+      TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && format('--{0} {1}', inputs.optimization_target_type, inputs.optimization_target_value) || '--target 75%' }}
+      SIMULATED_LATENCY_MS: 500
+
+    steps:
+    - name: Checkout smart-tests-robot-demo
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Checkout smart-tests-multi-repo-demo
+      uses: actions/checkout@v4
+      with:
+        repository: anuddeeph2/smart-tests-multi-repo-demo
+        ref: ${{ github.event_name == 'workflow_dispatch' && inputs.multi_repo_ref || 'patch-multi-repo-raw' }}
+        # PAT needed: github.token only grants access to the repo running this workflow,
+        # not to other private repos — even in the same account.
+        # Create a PAT with `repo` scope in anuddeeph2 and add it as secret MULTI_REPO_PAT
+        # in anuddeeph2/smart-tests-robot-demo.
+        token: ${{ secrets.MULTI_REPO_PAT }}
+        path: multi-repo-app
+        fetch-depth: 0
+
+    - name: Get smart-tests-multi-repo-demo commit SHA
+      id: multi-repo-sha
+      run: echo "sha=$(git -C multi-repo-app rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13.1'
+        cache: 'pip'
+
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '21'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r multi-repo-app/requirements.txt
+        pip install -r multi-repo-app/requirements-robot.txt
+        pip3 install --no-cache-dir smart-tests-cli==2.12.4
+
+    - name: Verify Smart Tests connectivity
+      run: smart-tests verify || true
+
+    - name: Record commits with Smart Tests
+      run: |
+        smart-tests record commit --name anuddeeph2/smart-tests-multi-repo-demo --source ${{ github.workspace }}/multi-repo-app --max-days 90
+
+    - name: Record build with Smart Tests (multi-repo)
+      run: |
+        smart-tests record build --build ${{ github.run_id }} \
+          --no-commit-collection \
+          --commit ${{ github.repository }}=${{ github.sha }} \
+          --commit anuddeeph2/smart-tests-multi-repo-demo=${{ steps.multi-repo-sha.outputs.sha }}
+
+    - name: Record session with Smart Tests
+      run: |
+        smart-tests record session --build ${{ github.run_id }} $OBSERVATION_FLAG --test-suite book-library-multi-repo-s3-raw-v1 > session.txt
+        cat session.txt
+        echo "Mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'observation (default)' }}"
+        echo "Target: $TARGET_FLAG"
+        echo "Book library SHA: ${{ steps.multi-repo-sha.outputs.sha }}"
+
+    - name: Initialize book library database
+      working-directory: multi-repo-app
+      run: |
+        python -m app.db.init_db
+        python -m app.db.seed_data
+
+    - name: Generate testPath list from dry-run (raw profile)
+      shell: bash
+      working-directory: multi-repo-app
+      run: |
+        echo "Running Robot dry-run to collect test names..."
+        mkdir -p /tmp/robot-dryrun
+        robot --dryrun --outputdir /tmp/robot-dryrun tests/robot/ 2>/dev/null || true
+
+        echo "Parsing dry-run output.xml to generate testPath strings..."
+        python3 - <<'PYEOF'
+        import xml.etree.ElementTree as ET
+        import os
+
+        # Working dir is multi-repo-app — relpath gives tests/robot/... paths
+        tree = ET.parse('/tmp/robot-dryrun/output.xml')
+        root = tree.getroot()
+        paths = []
+
+        for suite in root.iter('suite'):
+            source = suite.get('source', '')
+            if not source.endswith('.robot'):
+                continue
+            rel_source = os.path.relpath(source)
+            for test in suite.findall('test'):
+                name = test.get('name', '')
+                if name:
+                    paths.append(f'file={rel_source}#testcase={name}')
+
+        testpath_file = os.environ['GITHUB_WORKSPACE'] + '/testpath.txt'
+        with open(testpath_file, 'w') as f:
+            f.write('\n'.join(paths) + '\n')
+
+        print(f'Generated {len(paths)} testPath entries')
+        PYEOF
+
+        echo "Sample testPath entries:"
+        head -5 $GITHUB_WORKSPACE/testpath.txt
+        echo "Total: $(wc -l < $GITHUB_WORKSPACE/testpath.txt) test paths"
+
+    - name: Create Smart Tests subset (raw profile)
+      shell: bash
+      run: |
+        set +e
+        echo "Requesting raw subset from Smart Tests..."
+        smart-tests subset raw --session @session.txt $TARGET_FLAG testpath.txt > smart-tests-subset.txt 2>/tmp/subset-status.txt
+        EXIT_CODE=$?
+        cat /tmp/subset-status.txt || true
+        set -e
+
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "Smart Tests subset failed, falling back to ALL tests"
+          echo "ALL" > smart-tests-subset.txt
+        fi
+
+        echo "Subset result:"
+        cat smart-tests-subset.txt
+        echo "Tests in subset: $(wc -l < smart-tests-subset.txt)"
+
+    - name: Convert raw subset to Robot Framework args
+      shell: bash
+      run: |
+        SUBSET_CONTENT=$(cat smart-tests-subset.txt)
+        if [ "$SUBSET_CONTENT" = "ALL" ] || [ ! -s smart-tests-subset.txt ]; then
+          echo "ROBOT_ARGS=" >> $GITHUB_ENV
+          exit 0
+        fi
+
+        python3 - <<'PYEOF'
+        import os
+        from collections import defaultdict
+
+        suites = defaultdict(list)
+        with open('smart-tests-subset.txt') as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                if '#testcase=' in line:
+                    file_part, tc_part = line.split('#testcase=', 1)
+                    filepath = file_part.replace('file=', '', 1)
+                    suites[filepath].append(tc_part)
+                else:
+                    filepath = line.replace('file=', '', 1)
+                    suites[filepath] = None
+
+        args = []
+        for filepath, tests in suites.items():
+            suite_name = os.path.splitext(os.path.basename(filepath))[0].replace('_', ' ').title()
+            args.append(f'--suite "{suite_name}"')
+            if tests is not None:
+                for t in tests:
+                    args.append(f'--test "{t}"')
+
+        robot_args = ' '.join(args)
+        with open(os.environ['GITHUB_ENV'], 'a') as f:
+            f.write(f'ROBOT_ARGS={robot_args}\n')
+
+        print(f'Robot args: {robot_args[:200]}{"..." if len(robot_args) > 200 else ""}')
+        PYEOF
+
+    - name: Start book library app and run Robot tests
+      continue-on-error: true
+      working-directory: multi-repo-app
+      run: |
+        DEBUG=False uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+        APP_PID=$!
+
+        echo "Waiting for application to start..."
+        timeout 30 bash -c 'until curl -f http://localhost:8000/health 2>/dev/null; do sleep 1; done' || {
+          echo "Application failed to start"
+          kill $APP_PID 2>/dev/null || true
+          exit 1
+        }
+        echo "Application is ready!"
+
+        mkdir -p $GITHUB_WORKSPACE/test-results
+        SUBSET_CONTENT=$(cat $GITHUB_WORKSPACE/smart-tests-subset.txt)
+
+        if [ -s $GITHUB_WORKSPACE/smart-tests-subset.txt ] && [ "$SUBSET_CONTENT" != "ALL" ] && [ -n "$ROBOT_ARGS" ]; then
+          echo "Running Robot Framework with raw subset args: $ROBOT_ARGS"
+          eval robot \
+            --outputdir $GITHUB_WORKSPACE/test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            $ROBOT_ARGS \
+            tests/robot/ || true
+        else
+          echo "Running all Robot Framework tests"
+          robot \
+            --outputdir $GITHUB_WORKSPACE/test-results \
+            --output output.xml \
+            --log log.html \
+            --report report.html \
+            --xunit junit.xml \
+            --loglevel INFO \
+            tests/robot/ || true
+        fi
+
+        kill $APP_PID 2>/dev/null || true
+      env:
+        DATABASE_URL: sqlite:///./library.db
+
+    - name: Generate raw profile JSON results from output.xml
+      if: always()
+      working-directory: multi-repo-app
+      run: |
+        python3 - <<'PYEOF'
+        # record tests raw with JUnit XML always produces class=<classname>#testcase=<name>,
+        # which never matches file=<path>#testcase=<name>. JSON input preserves the correct format.
+        # Working dir is multi-repo-app — relpath gives tests/robot/... paths matching subset raw.
+        import xml.etree.ElementTree as ET
+        import os, sys, json
+
+        output_xml = os.environ['GITHUB_WORKSPACE'] + '/test-results/output.xml'
+        if not os.path.exists(output_xml):
+            print("No output.xml found, skipping JSON generation")
+            sys.exit(0)
+
+        root = ET.parse(output_xml).getroot()
+        test_cases = []
+        for suite in root.iter('suite'):
+            source = suite.get('source', '')
+            if not source.endswith('.robot'):
+                continue
+            rel_source = os.path.relpath(source)
+            for test in suite.findall('test'):
+                test_name = test.get('name', '')
+                if not test_name:
+                    continue
+                status_elem = test.find('status')
+                if status_elem is None:
+                    continue
+                status = status_elem.get('status', 'FAIL')
+                elapsed = float(status_elem.get('elapsed', '0') or '0')
+                test_cases.append({
+                    'testPath': f'file={rel_source}#testcase={test_name}',
+                    'status': 'TEST_PASSED' if status == 'PASS' else 'TEST_FAILED',
+                    'duration': elapsed
+                })
+
+        results_file = os.environ['GITHUB_WORKSPACE'] + '/test-results/raw-results.json'
+        with open(results_file, 'w') as f:
+            json.dump({'testCases': test_cases}, f)
+        print(f'Generated {len(test_cases)} test results in raw-results.json')
+        PYEOF
+
+    - name: Record test results with Smart Tests (raw profile)
+      if: always()
+      run: |
+        if [ -f test-results/raw-results.json ]; then
+          echo "Recording test results to Smart Tests (raw profile)..."
+          smart-tests record tests raw --session @session.txt test-results/raw-results.json
+          echo "Test results recorded successfully!"
+        else
+          echo "No raw-results.json found"
+          ls -la test-results/ || echo "test-results directory not found"
+          exit 1
+        fi
+
+    - name: Store Test Results for Smart Tests (GitHub App)
+      if: always()
+      uses: cloudbees-oss/smart-tests-results-upload-action@v1
+
+    - name: Upload Robot Framework results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: robot-results-multi-repo-s3-raw-v1
+        path: test-results/
+        retention-days: 30
+
+    - name: Display test summary
+      if: always()
+      run: |
+        if [ -f test-results/output.xml ]; then
+          echo "=== Robot Framework Test Summary (Multi-Repo Raw Profile PTSv1) ==="
+          echo "smart-tests-robot-demo SHA: ${{ github.sha }}"
+          echo "smart-tests-multi-repo-demo SHA: ${{ steps.multi-repo-sha.outputs.sha }}"
+          python3 -c 'import xml.etree.ElementTree as ET; root = ET.parse("test-results/output.xml").getroot(); s = root.find(".//statistics/total/stat"); print(str(s.get("pass")) + " passed, " + str(s.get("fail")) + " failed") if s is not None else None' || echo "Could not parse test results"
+        else
+          echo "No test results found"
+        fi
