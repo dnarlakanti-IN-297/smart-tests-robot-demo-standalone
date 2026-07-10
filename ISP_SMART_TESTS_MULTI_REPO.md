@@ -70,7 +70,7 @@ The CloudBees documentation describes three scenarios. The key idea underneath a
 |---|---|---|
 | **1. Combined in one build, then tested** | One call: `record build --source repoA=path --source repoB=path` collects commits and records the build together | Planned (see below) |
 | **2. Built/deployed separately, then tested together (microservices)** | `record commit` per repo, then `record build --no-commit-collection --commit repo=sha ...` | **Implemented** |
-| **3. Incremental build over multiple repos** | `record commit` for changed/cloned repos only, then `record build --no-commit-collection --commit ...` for all repos (unchanged ones tagged by SHA from cache) | Planned (see below) |
+| **3. Incremental build over multiple repos** | `record commit` for changed repos only, then `record build --no-commit-collection --commit ...` for all repos (unchanged ones tagged by SHA from cache) | **Implemented** |
 
 ### Scenario 2 (implemented)
 
@@ -109,9 +109,41 @@ smart-tests record build --build ${{ github.run_id }} \
 
 No separate `record commit`, no `--no-commit-collection`, no `--commit` tags — `record build --source` collects the commits and records the build in one shot. This variant is planned as a separate demo.
 
-### Scenario 3 (planned)
+### Scenario 3 (implemented)
 
-Scenario 3 covers incremental builds where only changed repositories are cloned and the rest are referenced by SHA from cache. Its distinguishing trait: **more `--commit` tags than `record commit` calls** (unchanged repos are tagged by hash without a local `record commit`). Demonstrating it cleanly requires a third repository that is tagged by SHA but not cloned in a given run. This variant is planned as a separate demo.
+Scenario 3 models an **incremental build**: only the repos that *changed* are re-recorded, while unchanged repos are referenced by SHA from cache. Its distinguishing trait is **fewer `record commit` calls than `--commit` tags**.
+
+It does **not** require a third repository — the difference from Scenario 2 is simply that you **drop the `record commit` for the unchanged repo**. In this demo the application (`smart-tests-multi-repo-demo`) is the changed repo and the orchestrator (`smart-tests-robot-demo`) is the cached one:
+
+```bash
+# Record commit for the CHANGED repo only (the app); the orchestrator is NOT re-recorded
+smart-tests record commit --name anuddeeph2/smart-tests-multi-repo-demo --source ${{ github.workspace }}/multi-repo-app --max-days 90
+
+# Build still tags BOTH — the orchestrator SHA resolves from cache (recorded by prior Scenario 2 runs)
+smart-tests record build --build ${{ github.run_id }} \
+  --no-commit-collection \
+  --commit ${{ github.repository }}=${{ github.sha }} \
+  --commit anuddeeph2/smart-tests-multi-repo-demo=${{ steps.multi-repo-sha.outputs.sha }}
+```
+
+→ **1 `record commit`, 2 `--commit` tags** — the Scenario 3 signature.
+
+Why the app is the recorded (changed) repo and the orchestrator is cached: predictions are driven by changes to the code under test. The tests live in the app repo, so recording the app's commits is what produces meaningful subsets; the orchestrator is the test harness and rarely changes, so it is referenced from cache.
+
+**How the "cache" is satisfied:** the orchestrator's `--commit <sha>` resolves because its commits are already in the workspace from prior Scenario 2 runs. The Scenario 3 workflows reuse the Scenario 2 workspaces for exactly this reason (no separate seed step needed).
+
+**The 8 Scenario 3 workflows** mirror the Scenario 2 set (Playwright + Robot, raw + file, PTSv1 + PTSv2) with these differences:
+- filenames carry `-s3-` and display names are prefixed `[Multi-Repo Scenario 3]`
+- `workflow_dispatch`-only (no `push:` trigger), so they never collide with the Scenario 2 workflows on the shared branches — trigger them manually
+- reuse the Scenario 2 workspace variables (same profile → no `422`)
+- distinct `--test-suite` names (`...-multi-repo-s3-...`) so Scenario 3 sessions stay identifiable within the shared workspace
+
+| Framework | Profile | Workflow (v1 / v2) |
+|---|---|---|
+| Playwright | raw | `tests-playwright-github-app-integration-oidc-multi-repo-s3-raw-v1.yml` / `-v2.yml` |
+| Playwright | file | `tests-playwright-github-app-integration-oidc-multi-repo-s3-file-v1.yml` / `-v2.yml` |
+| Robot | raw | `tests-robot-github-app-integration-oidc-multi-repo-s3-raw-v1.yml` / `-v2.yml` |
+| Robot | file | `tests-robot-github-app-integration-oidc-multi-repo-s3-file-v1.yml` / `-v2.yml` |
 
 ---
 
