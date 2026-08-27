@@ -69,8 +69,9 @@ jobs:
       # Set SMART_TESTS_TOKEN_ptsv2 as a repository secret (separate from SMART_TESTS_TOKEN_ptsv1 — each Unify token is scoped to one version)
       SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN_ptsv2 }}
       # Must be a UUID value — find in CloudBees Unify > Admin Settings > Organization Profile
-      # Set SMART_TESTS_ORGANIZATION_v2 as a repository variable
+      # Set SMART_TESTS_ORGANIZATION_v2 and SMART_TESTS_WORKSPACE_v2 as repository variables
       SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v2 }}
+      SMART_TESTS_WORKSPACE: ${{ vars.SMART_TESTS_WORKSPACE_v2 }}
       OBSERVATION_FLAG: ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'observation' && '--observation' || ' ' }}
       TARGET_FLAG: ${{ github.event_name == 'workflow_dispatch' && format('--{0} {1}', inputs.optimization_target_type, inputs.optimization_target_value) || '--target 75%' }}
       SIMULATED_LATENCY_MS: 500
@@ -81,7 +82,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Determine profile and workspace
+    - name: Determine profile
       shell: bash
       run: |
         if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -92,14 +93,7 @@ jobs:
           PROFILE="file"
         fi
 
-        if [ "$PROFILE" = "raw" ]; then
-          WORKSPACE="${{ vars.SMART_TESTS_WORKSPACE_v2_raw }}"
-        else
-          WORKSPACE="${{ vars.SMART_TESTS_WORKSPACE_v2 }}"
-        fi
-
         echo "PROFILE=$PROFILE" >> "$GITHUB_ENV"
-        echo "SMART_TESTS_WORKSPACE=$WORKSPACE" >> "$GITHUB_ENV"
         echo "Selected profile: $PROFILE"
 
     - name: Set up Python
