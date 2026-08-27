@@ -67,7 +67,8 @@ jobs:
       contents: read
 
     env:
-      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN }}
+      # Set SMART_TESTS_TOKEN_ptsv1 as a repository secret (separate from SMART_TESTS_TOKEN_ptsv2 — each Unify token is scoped to one version)
+      SMART_TESTS_TOKEN: ${{ secrets.SMART_TESTS_TOKEN_ptsv1 }}
       # Must be a UUID value — find in CloudBees Unify > Admin Settings > Organization Profile
       # Set SMART_TESTS_ORGANIZATION_v1 as a repository variable
       SMART_TESTS_ORGANIZATION: ${{ vars.SMART_TESTS_ORGANIZATION_v1 }}
