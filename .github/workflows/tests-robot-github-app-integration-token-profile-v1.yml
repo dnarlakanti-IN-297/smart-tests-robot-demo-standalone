@@ -61,7 +61,7 @@ on:
 jobs:
   robot-profile-ptsv1:
     name: Robot Framework API Tests (Token - PTSv1)
-    runs-on: runner-robot-demo
+    runs-on: ubuntu-latest
 
     permissions:
       contents: read
