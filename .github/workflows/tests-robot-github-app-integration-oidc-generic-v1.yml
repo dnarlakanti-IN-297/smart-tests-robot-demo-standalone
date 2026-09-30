@@ -96,8 +96,13 @@ jobs:
     - name: Verify Smart Tests connectivity (OIDC)
       run: |
         smart-tests --version
-        # Prints normalized-sub (repo:OWNER/REPO); register it under Settings > Trusted OIDC subjects
-        smart-tests verify --oidc
+        # If the repo is not yet a Trusted OIDC subject, this prints the block to register
+        # under Settings > Trusted OIDC subjects. Once registered, it prints export lines
+        # for SMART_TESTS_ORGANIZATION and SMART_TESTS_WORKSPACE.
+        OIDC_OUT=$(smart-tests verify --oidc)
+        echo "$OIDC_OUT"
+        # Each step is a new shell, so persist the exports for the remaining steps
+        echo "$OIDC_OUT" | sed -n "s/^export \(SMART_TESTS_[A-Z_]*\)='\(.*\)'$/\1=\2/p" >> "$GITHUB_ENV"
 
     - name: Record commits with Smart Tests
       run: |
